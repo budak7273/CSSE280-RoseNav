@@ -1,9 +1,9 @@
 # Get ESLint working
 
-1. Install NPM https://www.npmjs.com/get-npm
-2. Open a terminal and type `npm install`
+1. Install [NPM ](https://www.npmjs.com/get-npm). If you already have it, go to step 2
+2. Open a terminal inside the project folder (our git repo) and type `npm install`
 3. Install the ESLint plugin for VSCode
-4. Open one of the project's JS files and click this button:
+4. Open one of the project's JS files and click this button. If you don't see the button, relaunch VSCode.
 
 ![](https://i.imgur.com/uq5pgwT.png)
 
