@@ -1,0 +1,23 @@
+{
+  "name": "csse280-rosenav",
+  "version": "1.0.0",
+  "description": "CSSE280 group project, 2020-2021\u001b[D\u001b[D\u001b[D\u001b[D\u001b[D\u001b[D\u001b[D\u001b[D\u001b[DWinter Quarter 2020/2021",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/budak7273/CSSE280-RoseNav.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/budak7273/CSSE280-RoseNav/issues"
+  },
+  "homepage": "https://github.com/budak7273/CSSE280-RoseNav#readme",
+  "devDependencies": {
+    "eslint": "^7.18.0",
+    "eslint-config-google": "^0.14.0"
+  }
+}

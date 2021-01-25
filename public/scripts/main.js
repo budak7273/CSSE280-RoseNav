@@ -2,11 +2,11 @@
  * @fileoverview
  * Provides the JavaScript interactions for all pages.
  *
- * @author 
+ * @author
  * Veronica Kleinschmidt, Brian Chan, Rob Budak
  */
 
-/** namespace. */
+// eslint-disable-next-line no-var
 var rhit = rhit || {};
 
 /** globals */
@@ -25,7 +25,7 @@ rhit.ClassName = class {
 	methodName() {
 
 	}
-}
+};
 
 /* Main */
 /** function and class syntax examples */
