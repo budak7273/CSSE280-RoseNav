@@ -8,7 +8,7 @@
 
 // eslint-disable-next-line no-var
 var rhit = rhit || {};
-rhit.supportedLocations = ["Mussaleum Union", "O259", "Percopo Hall", "Lakeside", "O269"];
+rhit.supportedLocations = ["Mussallem Union", "O259", "Percopo Hall", "Lakeside", "O269"];
 
 
 /** globals */
@@ -40,11 +40,13 @@ function autocomplete(inp, arr) {
 		/*for each item in the array...*/
 		for (i = 0; i < arr.length; i++) {
 		  /*check if the item starts with the same letters as the text field value:*/
-		  if (arr[i].substr(0, val.length).toUpperCase() == val.toUpperCase()) {
+		//   if (arr[i].substr(0, val.length).toUpperCase() == val.toUpperCase()) {
+			//attempt to make search matching more general
+			if (arr[i].toUpperCase().indexOf(val.toUpperCase()) != -1) {
 			/*create a DIV element for each matching element:*/
 			b = document.createElement("DIV");
 			/*make the matching letters bold:*/
-			b.innerHTML = "<strong>" + arr[i].substr(0, val.length) + "</strong>";
+			b.innerHTML = "<strong>" + arr[i].substr(0, val.length) + "</strong>"; //TODO make this highlight starting at the index where the thingy is found?
 			b.innerHTML += arr[i].substr(val.length);
 			/*insert a input field that will hold the current array item's value:*/
 			b.innerHTML += "<input type='hidden' value='" + arr[i] + "'>";
