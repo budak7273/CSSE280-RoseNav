@@ -45,8 +45,13 @@ function autocomplete(inp, arr) {
 			if (arr[i].toUpperCase().indexOf(val.toUpperCase()) != -1) {
 			/*create a DIV element for each matching element:*/
 			b = document.createElement("DIV");
+
+			//first add everything up to index
+			//bold everything from index up to index + length of val
+			//add everything from index + length of val to the end of arr[i]
 			/*make the matching letters bold:*/
 			b.innerHTML = "<strong>" + arr[i].substr(0, val.length) + "</strong>"; //TODO make this highlight starting at the index where the thingy is found?
+			
 			b.innerHTML += arr[i].substr(val.length);
 			/*insert a input field that will hold the current array item's value:*/
 			b.innerHTML += "<input type='hidden' value='" + arr[i] + "'>";
