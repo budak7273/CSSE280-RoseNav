@@ -39,11 +39,15 @@ function autocomplete(inp, arr) {
 		this.parentNode.appendChild(a);
 		/*for each item in the array...*/
 
-		
+		let numResults = 0;
 		for (i = 0; i < arr.length; i++) {
 		  /*check if the item starts with the same letters as the text field value:*/
 		//   if (arr[i].substr(0, val.length).toUpperCase() == val.toUpperCase()) {
 			//attempt to make search matching more general
+			if(numResults == 5){
+				break;
+			}
+
 			if (arr[i].toUpperCase().indexOf(val.toUpperCase()) != -1) {
 			/*create a DIV element for each matching element:*/
 			b = document.createElement("DIV");
@@ -67,6 +71,7 @@ function autocomplete(inp, arr) {
 				closeAllLists();
 			});
 			a.appendChild(b);
+			numResults++;
 		  }
 		}
 	});
@@ -95,6 +100,7 @@ function autocomplete(inp, arr) {
 		  }
 		}
 	});
+
 	function addActive(x) {
 	  /*a function to classify an item as "active":*/
 	  if (!x) return false;
@@ -105,12 +111,14 @@ function autocomplete(inp, arr) {
 	  /*add class "autocomplete-active":*/
 	  x[currentFocus].classList.add("autocomplete-active");
 	}
+
 	function removeActive(x) {
 	  /*a function to remove the "active" class from all autocomplete items:*/
 	  for (var i = 0; i < x.length; i++) {
 		x[i].classList.remove("autocomplete-active");
 	  }
 	}
+
 	function closeAllLists(elmnt) {
 	  /*close all autocomplete lists in the document,
 	  except the one passed as an argument:*/
@@ -121,12 +129,7 @@ function autocomplete(inp, arr) {
 	  }
 	}
   }
-  /*execute a function when someone clicks in the document:*/
-  document.addEventListener("click", function (e) {
-	  closeAllLists(e.target);
-  });
-  }
-
+}
 rhit.ClassName = class {
 	constructor() {
 
@@ -137,17 +140,33 @@ rhit.ClassName = class {
 	}
 };
 
-/* Main */
-/** function and class syntax examples */
 rhit.main = function () {
 	console.log("Ready");
-	autocomplete(document.querySelector("#startInput"), rhit.supportedLocations);
-	autocomplete(document.querySelector("#destInput"), rhit.supportedLocations);
-	document.querySelector("#submitLocation").addEventListener("click", (event) => {
-		const currentStart = document.querySelector("#startInput").value;
-		const currentDest = document.querySelector("#destInput").value;
-		console.log(`Planning route from ${currentStart} to ${currentDest}`);
-	});
+	// TODO: arrange the following into neater classes to follow MVC conventions
+
+	if(document.querySelector("#mainPage")) {
+		autocomplete(document.querySelector("#startInput"), rhit.supportedLocations);
+		autocomplete(document.querySelector("#destInput"), rhit.supportedLocations);
+		document.querySelector("#submitLocation").addEventListener("click", (event) => {
+			const currentStart = document.querySelector("#startInput").value;
+			const currentDest = document.querySelector("#destInput").value;
+			// console.log(`Planning route from ${currentStart} to ${currentDest}`);
+			window.location.href = `./route.html?start=${currentStart}&dest=${currentDest}`;
+		});
+	}
+
+	if(document.querySelector("#routePage")) {
+		// get url parameter
+		const queryString = window.location.search;
+		const urlParams = new URLSearchParams(queryString);
+		const startPoint = urlParams.get("start");
+		const destPoint = urlParams.get("dest");
+		document.querySelector("#directionsItem").innerHTML = `${startPoint} to ${destPoint}`;
+		// TODO: long term, but pass startPoint and destPoint into
+		// a magical box that spits out the distance between them
+	}
+
+
 };
 
 rhit.main();
