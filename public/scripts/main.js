@@ -11,6 +11,7 @@ var rhit = rhit || {};
 // eslint-disable-next-line max-len
 rhit.supportedLocations = ["Mussallem Union", "Lakeside Hall", "Percopo Hall", "Apartments East", "Apartments West", "Blumberg Hall", "Scharpenburg Hall", "Mees Hall", "BSB Hall", "Speed Hall", "Deming Hall", "O259", "O269", "O267", "O257"];
 
+// import { jsgraphs } from './jsgraphs.js';
 
 /** globals */
 rhit.variableName = "";
@@ -19,6 +20,11 @@ rhit.variableName = "";
 rhit.functionName = function () {
 	/** function body */
 };
+
+// https://www.npmjs.com/package/js-graph-algorithms#create-directed-weighted-graph
+// https://rawgit.com/chen0040/js-graph-algorithms/master/examples/example-weighted-digraph.html
+const g = new jsgraphs.WeightedDiGraph(8);
+console.log(g);
 
 // taken from https://www.w3schools.com/howto/howto_js_autocomplete.asp
 function autocomplete(inp, arr) {
