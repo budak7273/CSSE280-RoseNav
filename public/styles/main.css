@@ -1,9 +1,14 @@
+:root {
+	--offwhite: #DDDDDD;
+	--rosered: #800000;
+}
+
 body {
-	background: #DDDDDD;
+	background: var(--offwhite);
 }
 
 .navbar {
-	background-color: #800000;
+	background-color: var(--rosered);
 	color: white;
 }
 
@@ -11,16 +16,56 @@ body {
 	margin-top: 75px;
 }
 
+.bottom-float {
+	position: fixed;
+	bottom: 10px;
+	z-index: 999;
+	
+	/* Horizontal centering */
+	/* https://stackoverflow.com/a/2006008 */
+	left: 0;
+	right: 0;
+}
+
 .bmd-layout-content {
-    height: 100vh;
+	height: 100vh;
+}
+
+.bmd-drawer-in > .bmd-layout-drawer {
+	width: 300px;
 }
 
 .bmd-layout-drawer>header {
-    background-color: #800000;
-    color: white;
+	background-color: var(--rosered);
+	color: white;
 }
 .bmd-layout-drawer>ul {
-    background-color: #DDDDDD;
+	background-color: var(--offwhite);
+}
+
+.btn-red {
+	background-color: var(--rosered);
+	color: white;
+	border-radius: 7px;
+	text-transform: none;
+	font-size: 0.9em;
+}
+
+.btn-icon {
+	/* https://stackoverflow.com/a/38543056 */
+	display: inline-flex;
+	align-items: center;
+}
+
+.btn-icon > i {
+	font-size: 15px;
+	margin-right: 8px;
+}
+
+/* Win specificity war with bootstrap material design animation */
+#signInOutButton {
+	background-color: var(--rosered);
+	color: white;
 }
 
 .autocomplete {
