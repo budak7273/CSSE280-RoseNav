@@ -11,6 +11,18 @@ body {
 	margin-top: 75px;
 }
 
+.bmd-layout-content {
+    height: 100vh;
+}
+
+.bmd-layout-drawer>header {
+    background-color: #800000;
+    color: white;
+}
+.bmd-layout-drawer>ul {
+    background-color: #DDDDDD;
+}
+
 .autocomplete {
 	/*the container must be positioned relative:*/
 	position: relative;
