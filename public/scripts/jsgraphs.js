@@ -1,5 +1,12 @@
-// NPM package https://www.npmjs.com/package/js-graph-algorithms
 /* eslint-disable */
+
+// NPM package https://www.npmjs.com/package/js-graph-algorithms
+
+// Changes made to this file will NOT be reflected on the main site, since they are loaded in via unpkg.
+// This is for reference only.
+// If we do eventually need to change this, switch the script lines in the html to import this instead.
+
+
 
 
 var jsgraphs = jsgraphs || {};
