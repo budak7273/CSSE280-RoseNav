@@ -282,6 +282,10 @@ rhit.RouteManager = class {
 		L.marker([startLat, startLong]).addTo(routeMap)
 			.bindPopup('A pretty CSS3 popup.<br> Easily customizable.')
 			.openPopup();
+
+		routeMap.on('dblclick', function(event) {
+			console.log(event.latlng); // logs latlong position of where you click on the map, hopefully
+		});
 	}
 
 	methodName() {
