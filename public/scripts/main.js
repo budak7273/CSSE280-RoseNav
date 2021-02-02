@@ -197,9 +197,11 @@ rhit.HomeController = class {
 			signedInStatus.innerHTML = `Signed in as ${signedInUID}`;
 			signedInText.innerHTML = "Sign Out";
 			sandwichSignedIn.style.display = "block";
+			sandwichSignedOut.style.display = "none";
 		} else {
 			signedInStatus.innerHTML = "You aren't currently signed in.";
 			signedInText.innerHTML = "Sign In";
+			sandwichSignedIn.style.display = "none";
 			sandwichSignedOut.style.display = "block";
 		}
 	}
