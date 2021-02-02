@@ -6,10 +6,12 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Material+Icons">
 	<link rel="stylesheet" href="styles/bootstrap-material-design.min.css">
-	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
+	<!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/> -->
 	<link rel="stylesheet" href="styles/main.css">
 	<title>RoseNav</title>
 </head>
+
+<!-- =================================================================================================== -->
 
 <body>
 	
@@ -27,10 +29,10 @@
 			<header>
 				<a class="navbar-brand">RoseNav</a>
 			</header>
-			<!-- <ul id="sandwich-signed-out" class="list-group">
+			<ul id="sandwichSignedOut" class="list-group" style="display: none;">
 				<a id="menuSignIn" class="list-group-item"><i class="material-icons">login</i>Sign In</a>
-			</ul> -->
-			<ul id="sandwich-signed-in" class="list-group" > <!-- style="display: none;" -->
+			</ul>
+			<ul id="sandwichSignedIn" class="list-group" style="display: none;">
 				<a id="menuSavedSpeeds" class="list-group-item"><i class="material-icons">hourglass_full</i>Set Saved Speeds</a>
 				<a id="menuSavedLocations" class="list-group-item"><i class="material-icons">add_location_alt</i>Saved Locations</a>
 				<a id="menuClearData" class="list-group-item"><i class="material-icons">delete_forever</i>Clear my Data</a>
@@ -49,6 +51,7 @@
 					<div class="row justify-content-center">
 						<form autocomplete="off" action="/">
 							<div class="autocomplete" style="width:300px;">
+								<!-- <div id="invalidStartTooltip" role="tooltip">Invalid starting place</div> -->
 								<input id="startInput" type="text" name="myStart" placeholder="Enter Starting Location">
 							</div>
 						</form>
@@ -58,28 +61,34 @@
 					<div class="row justify-content-center">
 						<form autocomplete="off" action="/">
 							<div class="autocomplete" style="width:300px;">
+								<!-- <div id="invalidDestTooltip" role="tooltip">Invalid destination</div> -->
 								<input id="destInput" type="text" name="myDest" placeholder="Enter Destination">
 							</div>
 						</form>
 						
 					</div>
 					<div class="row justify-content-center">
-						<button id="submitLocation"class="btn btn-red">TEMPORARY SUBMIT BUTTON</button>
+						<button id="submitLocation"class="btn btn-red btn-icon">Let's Go!&nbsp;&nbsp;<i class="material-icons">arrow_right_alt</i></button>
 					</div>
 				</div>
 
 				<div class="bottom-float">
 					<div class="row justify-content-center">
-						<p id="signInStatusMessage">You aren't currently signed in.</p>
+						<p id="signInStatusMessage">Loading...</p>
 					</div>
 					<div class="row justify-content-center">
-						<button class="btn btn-red btn-icon" id="signInOutButton" type="button"><i class="material-icons">login</i>Sign In</button>
+						<button class="btn btn-red btn-icon" id="signInOutButton" type="button">
+							<i class="material-icons">login</i>
+							<span id="signInOutButtonText">Loading...</span>
+						</button>
 					</div>
 				</div>
 			
 			</div>
 		</main>
 	  </div>
+
+<!-- =================================================================================================== -->
 
 	<!-- Bootstrap Material Design -->
 	<script src="scripts/jquery.min.js"></script>
@@ -93,14 +102,19 @@
 	<script src="/__/firebase/7.18.0/firebase-auth.js"></script>
 	<script src="/__/firebase/7.18.0/firebase-firestore.js"></script>
 	<script src="/__/firebase/init.js"></script>
+	<script src="scripts/rosefire.min.js"></script>
 
 	<!-- Make sure you put this AFTER Leaflet's CSS -->
-	<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+	<!-- <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script> -->
 	
 	<!-- JSGraphs graph library -->
 	<!-- <script type="text/javascript" src="scripts/jsgraphs.js"></script> -->
 	<script src="https://unpkg.com/js-graph-algorithms@1.0.18/src/jsgraphs.js" crossorigin=""></script>
 	<!-- <script src="https://unpkg.com/js-graph-algorithms@1.0.18/build/jsgraphs.min.js" crossorigin=""></script> -->
+
+	<!-- Tippy.js tooltips with Popper.js -->
+	<script src="https://unpkg.com/@popperjs/core@2"></script>
+	<script src="https://unpkg.com/tippy.js@6"></script>
 
 	<script type="text/javascript" src="scripts/main.js"></script>
 </body>

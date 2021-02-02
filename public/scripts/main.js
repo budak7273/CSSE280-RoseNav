@@ -6,28 +6,23 @@
  * Veronica Kleinschmidt, Brian Chan, Rob Budak
  */
 
-// eslint-disable-next-line no-var
+/* eslint-disable no-var */
 var rhit = rhit || {};
+var w3schools = w3schools || {};
+/* eslint-enable no-var */
+
 // eslint-disable-next-line max-len
 rhit.supportedLocations = ["Mussallem Union", "Lakeside Hall", "Percopo Hall", "Apartments East", "Apartments West", "Blumberg Hall", "Scharpenburg Hall", "Mees Hall", "BSB Hall", "Speed Hall", "Deming Hall", "O259", "O269", "O267", "O257"];
 
-// import { jsgraphs } from './jsgraphs.js';
+// Singletons
+rhit.fbAuthManagerSingleton = null;
+rhit.routeManagerSingleton = null;
+rhit.homeManagerSingleton = null;
+rhit.settingsManagerSingleton = null;
 
-/** globals */
-rhit.variableName = "";
 
-/** function and class syntax examples */
-rhit.functionName = function () {
-	/** function body */
-};
-
-// https://www.npmjs.com/package/js-graph-algorithms#create-directed-weighted-graph
-// https://rawgit.com/chen0040/js-graph-algorithms/master/examples/example-weighted-digraph.html
-const g = new jsgraphs.WeightedDiGraph(8);
-console.log(g);
-
-// taken from https://www.w3schools.com/howto/howto_js_autocomplete.asp
-function autocomplete(inp, arr) {
+// adapted from https://www.w3schools.com/howto/howto_js_autocomplete.asp
+w3schools.autocomplete = function (inp, arr) {
 	/* the autocomplete function takes two arguments,
 	the text field element and an array of possible autocompleted values:*/
 	let currentFocus;
@@ -131,20 +126,160 @@ function autocomplete(inp, arr) {
 		}
 	}
 
-	function closeAllLists(elmnt) {
+	function closeAllLists(element) {
 	/* close all autocomplete lists in the document,
 	  except the one passed as an argument:*/
 		const x = document.getElementsByClassName("autocomplete-items");
 		for (let i = 0; i < x.length; i++) {
-			if (elmnt != x[i] && elmnt != inp) {
+			if (element != x[i] && element != inp) {
 				x[i].parentNode.removeChild(x[i]);
 			}
 		}
 	}
-}
-rhit.ClassName = class {
+};
+
+
+rhit.HomeController = class {
+	constructor() {
+		const startInput = document.querySelector("#startInput");
+		const destInput = document.querySelector("#destInput");
+
+		w3schools.autocomplete(startInput, rhit.supportedLocations);
+		w3schools.autocomplete(destInput, rhit.supportedLocations);
+
+		// https://atomiks.github.io/tippyjs/v6/getting-started/
+		this._startInvalidTooltip = tippy(startInput, {content: 'Invalid start location', trigger: 'manual'});
+		this._destInvalidTooltip = tippy(destInput, {content: 'Invalid destination', trigger: 'manual'});
+
+		document.querySelector("#menuSignIn").onclick = (event) => {
+			rhit.fbAuthManagerSingleton.signIn();
+		};
+		if (rhit.fbAuthManagerSingleton.isSignedIn) {
+			document.querySelector("#signInOutButton").onclick = (event) => {
+				rhit.fbAuthManagerSingleton.signOut();
+			};
+		} else {
+			document.querySelector("#signInOutButton").onclick = (event) => {
+				rhit.fbAuthManagerSingleton.signIn();
+			};
+		}
+
+		document.querySelector("#submitLocation").addEventListener("click", (event) => {
+			const currentStart = document.querySelector("#startInput").value;
+			const currentDest = document.querySelector("#destInput").value;
+			console.log(`Planning route from ${currentStart} to ${currentDest}`);
+
+			const success = rhit.homeManagerSingleton.validateSearchEntries();
+			if (success) {
+				window.location.href = `./route.html?start=${currentStart}&dest=${currentDest}`;
+			}
+		});
+
+		// Run route search on press enter in dest box
+		// From https://mdbootstrap.com/support/jquery/login-modal-best-way-to-have-the-enter-key-click-the-login-button/
+		// These answers did not seem to work for the modal: https://stackoverflow.com/questions/29943/how-to-submit-a-form-when-the-return-key-is-pressed
+		$("#destInput").on("keypress", (event) => {
+			console.log(event);
+			if (event.which === 13) {
+				$("#submitLocation").click();
+			}
+		});
+
+		const signedInStatus = document.querySelector("#signInStatusMessage");
+		const signedInText = document.querySelector("#signInOutButtonText");
+		const sandwichSignedOut = document.querySelector("#sandwichSignedOut");
+		const sandwichSignedIn = document.querySelector("#sandwichSignedIn");
+
+		const isSignedIn = rhit.fbAuthManagerSingleton.isSignedIn;
+
+		if (isSignedIn) {
+			const signedInUID = rhit.fbAuthManagerSingleton.uid;
+			signedInStatus.innerHTML = `Signed in as ${signedInUID}`;
+			signedInText.innerHTML = "Sign Out";
+			sandwichSignedIn.style.display = "block";
+		} else {
+			signedInStatus.innerHTML = "You aren't currently signed in.";
+			signedInText.innerHTML = "Sign In";
+			sandwichSignedOut.style.display = "block";
+		}
+	}
+
+	methodName() {
+
+	}
+};
+rhit.HomeManager = class {
 	constructor() {
 
+	}
+
+	validateSearchEntries() {
+		const startInput = document.querySelector("#startInput");
+		const destInput = document.querySelector("#destInput");
+
+		const isValidStart = rhit.supportedLocations.includes(startInput.value);
+		const isValidEnd = rhit.supportedLocations.includes(destInput.value);
+
+		if (isValidStart && isValidEnd) {
+			return true;
+		} else {
+			const startTipper = startInput._tippy;
+			const destTipper = destInput._tippy;
+
+			if (!isValidStart) {
+				startTipper.show();
+			}
+			if (!isValidEnd) {
+				destTipper.show();
+			}
+			return false;
+		}
+	}
+};
+
+rhit.RouteController = class {
+	constructor(startPoint, destPoint) {
+		this._startPoint = startPoint;
+		this._destPoint = destPoint;
+
+		document.querySelector("#directionsItem").innerHTML = `${startPoint} to ${destPoint}`;
+	}
+
+	methodName() {
+
+	}
+};
+rhit.RouteManager = class {
+	constructor(startPoint, destPoint) {
+		this._startPoint = startPoint;
+		this._destPoint = destPoint;
+
+		// https://www.npmjs.com/package/js-graph-algorithms#create-directed-weighted-graph
+		// https://rawgit.com/chen0040/js-graph-algorithms/master/examples/example-weighted-digraph.html
+		const g = new jsgraphs.WeightedDiGraph(8);
+		console.log(g);
+
+		const startLat = 39.48310247510036;
+		const startLong = -87.32657158931686;
+
+		const bottomLeftCorner = L.latLng(39.479158569243786, -87.33267219017984);
+		const topRightCorner = L.latLng(39.486971582184474, -87.31458987623805);
+		const bounds = L.latLngBounds(bottomLeftCorner, topRightCorner);
+
+		const routeMap = L.map('navigateMap', {
+			center: [startLat, startLong],
+			zoom: 20,
+			minZoom: 17,
+			maxBounds: bounds,
+		}); // .setView([startLat, startLong], 13);
+
+		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+		}).addTo(routeMap);
+
+		L.marker([startLat, startLong]).addTo(routeMap)
+			.bindPopup('A pretty CSS3 popup.<br> Easily customizable.')
+			.openPopup();
 	}
 
 	methodName() {
@@ -152,31 +287,101 @@ rhit.ClassName = class {
 	}
 };
 
-rhit.main = function () {
-	console.log("Ready");
-	// TODO: arrange the following into neater classes to follow MVC conventions
-
-	if (document.querySelector("#mainPage")) {
-		autocomplete(document.querySelector("#startInput"), rhit.supportedLocations);
-		autocomplete(document.querySelector("#destInput"), rhit.supportedLocations);
-		document.querySelector("#submitLocation").addEventListener("click", (event) => {
-			const currentStart = document.querySelector("#startInput").value;
-			const currentDest = document.querySelector("#destInput").value;
-			// console.log(`Planning route from ${currentStart} to ${currentDest}`);
-			window.location.href = `./route.html?start=${currentStart}&dest=${currentDest}`;
+rhit.FbAuthManager = class {
+	constructor() {
+		this._user = null;
+		console.log("Auth manager created");
+	}
+	beginListening(changeListener) {
+		firebase.auth().onAuthStateChanged((user) => {
+			this._user = user;
+			changeListener();
 		});
 	}
+	signIn() {
+		// Please note this needs to be the result of a user interaction
+		// (like a button click) otherwise it will get blocked as a popup
+		Rosefire.signIn("6179a69f-160f-4cad-87e8-a62cb4debf40", (err, rfUser) => {
+			if (err) {
+				console.log("Rosefire error!", err);
+				return;
+			}
+			console.log("Rosefire success!", rfUser);
 
-	if (document.querySelector("#routePage")) {
+			firebase.auth().signInWithCustomToken(rfUser.token)
+				.then((user) => {
+				// Signed in
+
+				// Better to use onAuthStateChanged because it catches any sign in method/instance
+				})
+				.catch((error) => {
+				// Handle Errors here.
+					const errorCode = error.code;
+					const errorMessage = error.message;
+					if (errorCode === 'auth/invalid-custom-token') {
+						alert('The token you provided is not valid.');
+					} else {
+						console.log(`Custom auth`, errorCode, errorMessage);
+					}
+				});
+		});
+	}
+	signOut() {
+		firebase.auth().signOut().catch((error) => {
+			// An error happened.
+			console.error("Sign out failed!");
+		});
+	}
+	get isSignedIn() {
+		return !!this._user;
+	}
+	get uid() {
+		return this._user.uid;
+	}
+};
+
+rhit.initializePage = function () {
+	const urlParams = new URLSearchParams(window.location.search);
+
+	if (document.querySelector("#loginPage")) {
+		// console.log("You are on the Login page.");
+		// // Auth singleton already made at the top
+		// new rhit.LoginPageController();
+	} else if (document.querySelector("#mainPage")) {
+		console.log("You are on the Main Home page.");
+
+		rhit.homeManagerSingleton = new this.HomeManager();
+		new rhit.HomeController();
+	} else if (document.querySelector("#routePage")) {
+		console.log("You are on the Route page.");
+
 		// get url parameter
-		const queryString = window.location.search;
-		const urlParams = new URLSearchParams(queryString);
 		const startPoint = urlParams.get("start");
 		const destPoint = urlParams.get("dest");
-		document.querySelector("#directionsItem").innerHTML = `${startPoint} to ${destPoint}`;
-		// TODO: long term, but pass startPoint and destPoint into
-		// a magical box function that spits out the distance between them
+
+		rhit.routeManagerSingleton = new rhit.RouteManager(startPoint, destPoint);
+		new rhit.RouteController(startPoint, destPoint);
+	} else if (document.querySelector("#settingsPage")) {
+		console.log("You are on the Settings page.");
+
+		rhit.settingsManagerSingleton = new rhit.SettingsManager();
+		new rhit.SettingsController();
 	}
+};
+
+rhit.main = function () {
+	rhit.fbAuthManagerSingleton = new rhit.FbAuthManager();
+	rhit.fbAuthManagerSingleton.beginListening(() => {
+		console.log("isSignedIn = ", rhit.fbAuthManagerSingleton.isSignedIn);
+
+		// Check for redirects
+		// rhit.checkForRedirects();
+
+		// Init page
+		rhit.initializePage();
+	});
+
+	console.log("Ready");
 };
 
 rhit.main();
