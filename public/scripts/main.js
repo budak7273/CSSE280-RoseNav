@@ -273,15 +273,17 @@ rhit.RouteManager = class {
 			zoom: 20,
 			minZoom: 17,
 			maxBounds: bounds,
+			doubleClickZoom: false,
 		}); // .setView([startLat, startLong], 13);
 
 		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 		}).addTo(routeMap);
 
-		L.marker([startLat, startLong]).addTo(routeMap)
+		const testMarker = L.marker([startLat, startLong], {draggable: true, autoPan: true}).addTo(routeMap)
 			.bindPopup('A pretty CSS3 popup.<br> Easily customizable.')
 			.openPopup();
+
 
 		routeMap.on('dblclick', function(event) {
 			console.log(event.latlng); // logs latlong position of where you click on the map, hopefully
