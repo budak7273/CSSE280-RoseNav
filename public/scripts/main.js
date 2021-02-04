@@ -264,16 +264,22 @@ rhit.RouteManager = class {
 		const startLat = 39.48310247510036;
 		const startLong = -87.32657158931686;
 
-		const bottomLeftCorner = L.latLng(39.479158569243786, -87.33267219017984);
+		// OLD map bounds (tighter, doesn't fit all of adventure course)
+		// const bottomLeftCorner = L.latLng(39.479158569243786, -87.33267219017984);
+
+		const bottomLeftCorner = L.latLng(39.47891646288526, -87.33532970827527);
 		const topRightCorner = L.latLng(39.486971582184474, -87.31458987623805);
 		const bounds = L.latLngBounds(bottomLeftCorner, topRightCorner);
 
 		const routeMap = L.map('navigateMap', {
 			center: [startLat, startLong],
 			zoom: 20,
-			minZoom: 17,
+			minZoom: 16,
 			maxBounds: bounds,
 		}); // .setView([startLat, startLong], 13);
+
+		// expose for debugging purposes
+		window.exposedMapObj = routeMap;
 
 		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -282,6 +288,8 @@ rhit.RouteManager = class {
 		L.marker([startLat, startLong]).addTo(routeMap)
 			.bindPopup('A pretty CSS3 popup.<br> Easily customizable.')
 			.openPopup();
+
+		L.control.scale().addTo(routeMap);
 
 		routeMap.on('dblclick', function(event) {
 			console.log(event.latlng); // logs latlong position of where you click on the map, hopefully
