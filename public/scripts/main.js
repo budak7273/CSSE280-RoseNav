@@ -276,6 +276,11 @@ rhit.RouteManager = class {
 			zoom: 20,
 			minZoom: 16,
 			maxBounds: bounds,
+			// zoomSnap: 0.25,
+			zoomSnap: 0.0,
+			zoomDelta: 0.1,
+			doubleClickZoom: false,
+			maxBoundsViscosity: 0.9,
 		}); // .setView([startLat, startLong], 13);
 
 		// expose for debugging purposes
@@ -290,6 +295,24 @@ rhit.RouteManager = class {
 			.openPopup();
 
 		L.control.scale().addTo(routeMap);
+
+		// From https://leafletjs.com/examples/zoom-levels/example-fractional.html
+		// https://leafletjs.com/examples/zoom-levels/
+		const ZoomViewer = L.Control.extend({
+			onAdd: function() {
+				const container= L.DomUtil.create('div');
+				const gauge = L.DomUtil.create('div');
+				container.style.width = '200px';
+				container.style.background = 'rgba(255,255,255,0.5)';
+				container.style.textAlign = 'left';
+				routeMap.on('zoomstart zoom zoomend', function(ev) {
+					gauge.innerHTML = `Zoom level: ${routeMap.getZoom()}`;
+				});
+				container.appendChild(gauge);
+				return container;
+			},
+		});
+		(new ZoomViewer).addTo(routeMap);
 
 		routeMap.on('dblclick', function(event) {
 			console.log(event.latlng); // logs latlong position of where you click on the map, hopefully
