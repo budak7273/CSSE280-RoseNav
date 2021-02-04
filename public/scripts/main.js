@@ -290,11 +290,10 @@ rhit.RouteManager = class {
 			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 		}).addTo(routeMap);
 
-		L.marker([startLat, startLong]).addTo(routeMap)
+		const testMarker = L.marker([startLat, startLong], {draggable: true, autoPan: true}).addTo(routeMap)
 			.bindPopup('A pretty CSS3 popup.<br> Easily customizable.')
 			.openPopup();
 
-		L.control.scale().addTo(routeMap);
 
 		// From https://leafletjs.com/examples/zoom-levels/example-fractional.html
 		// https://leafletjs.com/examples/zoom-levels/
