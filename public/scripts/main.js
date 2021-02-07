@@ -19,6 +19,16 @@ rhit.fbAuthManagerSingleton = null;
 rhit.routeManagerSingleton = null;
 rhit.homeManagerSingleton = null;
 rhit.settingsManagerSingleton = null;
+rhit.mapDataSubsystemSingleton = null;
+
+/** globals */
+rhit.FB_COLLECTION_LOCATIONS = "Locations";
+rhit.FB_COLLECTION_CONNECTIONS = "Connections";
+rhit.FB_KEY_LOC_GEO = "location";
+rhit.FB_KEY_LOC_NAME = "name";
+rhit.FB_KEY_LOC_ALIAS = "name-aliases";
+
+rhit.KEY_STORAGE_VERSION = "local-data-version";
 
 
 // adapted from https://www.w3schools.com/howto/howto_js_autocomplete.asp
@@ -245,22 +255,30 @@ rhit.RouteController = class {
 		this._destPoint = destPoint;
 
 		document.querySelector("#directionsItem").innerHTML = `${startPoint} to ${destPoint}`;
+
+		// rhit.routeManagerSingleton.beginListening(this.updateView.bind(this)); // TODO remove
 	}
 
-	methodName() {
-
+	updateView() {
+		console.log("Change listener fired");
 	}
 };
+
 rhit.RouteManager = class {
 	constructor(startPoint, destPoint) {
 		this._startPoint = startPoint;
 		this._destPoint = destPoint;
 
-		// https://www.npmjs.com/package/js-graph-algorithms#create-directed-weighted-graph
-		// https://rawgit.com/chen0040/js-graph-algorithms/master/examples/example-weighted-digraph.html
-		const g = new jsgraphs.WeightedDiGraph(8);
-		console.log(g);
+		const isValidStart = rhit.supportedLocations.includes(startPoint);
+		const isValidEnd = rhit.supportedLocations.includes(destPoint);
+		if (!isValidStart || !isValidEnd) {
+			console.error("One of the destinations entered was not in the supported locations list");
+		}
 
+		this._createMap();
+	}
+
+	_createMap() {
 		const startLat = 39.48310247510036;
 		const startLong = -87.32657158931686;
 
@@ -291,7 +309,7 @@ rhit.RouteManager = class {
 		}).addTo(routeMap);
 
 		const testMarker = L.marker([startLat, startLong], {draggable: true, autoPan: true}).addTo(routeMap)
-			.bindPopup('A pretty CSS3 popup.<br> Easily customizable.')
+			.bindPopup('Test popup<br> Hello.')
 			.openPopup();
 
 
@@ -316,10 +334,6 @@ rhit.RouteManager = class {
 		routeMap.on('dblclick', function(event) {
 			console.log(event.latlng); // logs latlong position of where you click on the map, hopefully
 		});
-	}
-
-	methodName() {
-
 	}
 };
 
@@ -376,6 +390,96 @@ rhit.FbAuthManager = class {
 	}
 };
 
+rhit.MapDataSubsystem = class {
+	constructor() {
+		this._dataVersion = parseInt(localStorage.getItem(rhit.KEY_STORAGE_VERSION)) || -1; // Version is stored or blank
+		this._nodes = {};
+		this._numNodes = 0;
+		this._connections = {};
+		this._namesList = [];
+
+		// https://www.npmjs.com/package/js-graph-algorithms#create-directed-weighted-graph
+		// https://rawgit.com/chen0040/js-graph-algorithms/master/examples/example-weighted-digraph.html
+		// const g = new jsgraphs.WeightedDiGraph(8);
+		// console.log(g);
+		this.navGraph = null;
+
+		this._documentSnapshots = [];
+		this._ref = firebase.firestore();
+		this._locationsRef = this._ref.collection(rhit.FB_COLLECTION_LOCATIONS);
+		this._connectionsRef = this._ref.collection(rhit.FB_COLLECTION_CONNECTIONS);
+		this._unsubscribe = null;
+
+		this._fetchMapDataIfNeededAndBuildGraph();
+	}
+
+	_fetchMapDataIfNeededAndBuildGraph() {
+		console.log(`Local map data version is ${this._dataVersion}`);
+
+		const liveMapVersionRef = this._ref.collection("Constants").doc("Versions");
+
+		liveMapVersionRef.get().then((doc) => {
+			if (doc.exists) {
+				// console.log(doc.data());
+
+				if (doc.data().map.seconds > this._dataVersion) {
+					console.log("Map data being fetched from Firebase");
+
+					this._locationsRef.get().then((querySnapshot) => {
+						console.log(querySnapshot.size);
+						this._numNodes = querySnapshot.size;
+
+						querySnapshot.forEach((doc) => {
+							// doc.data() is never undefined for query doc snapshots
+							// console.log(doc.id, " => ", doc.data());
+							const thisNode = new rhit.MapNode(doc.id, doc.data());
+							this._nodes[doc.id] = thisNode;
+							window[doc.id] = thisNode;
+						});
+					});
+
+					// TODO update local version on successful fetch
+				} else {
+					console.log("Map data reused from local storage");
+				}
+			} else {
+				console.error("No such document!");
+			}
+		}).catch((error) => {
+			console.error("error getting version: ", error);
+		});
+	}
+
+	_constructGraph() {
+
+	}
+
+	get locationNames() {
+		return this._namesList;
+	}
+};
+
+rhit.MapNode = class {
+	constructor (fbKey, fbLocation) {
+		this.fbKey = fbKey;
+		this.geopoint = fbLocation[rhit.FB_KEY_LOC_GEO];
+		this.name = fbLocation[rhit.FB_KEY_LOC_NAME] || `Unnamed node ${fbKey}`;
+		this.aliasList = fbLocation[rhit.FB_KEY_LOC_ALIAS] || [];
+	}
+
+	validAlias(name) {
+		return (name === this.name) || this.aliasList.includes(name);
+	}
+
+	get lat() {
+		return this.geopoint.df;
+	}
+
+	get long() {
+		return this.geopoint.wf;
+	}
+};
+
 rhit.initializePage = function () {
 	const urlParams = new URLSearchParams(window.location.search);
 
@@ -386,6 +490,8 @@ rhit.initializePage = function () {
 	} else if (document.querySelector("#mainPage")) {
 		console.log("You are on the Main Home page.");
 
+		// Needs map data for place search
+		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem();
 		rhit.homeManagerSingleton = new this.HomeManager();
 		new rhit.HomeController();
 	} else if (document.querySelector("#routePage")) {
@@ -395,6 +501,8 @@ rhit.initializePage = function () {
 		const startPoint = urlParams.get("start");
 		const destPoint = urlParams.get("dest");
 
+		// Needs map data for navigation
+		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem();
 		rhit.routeManagerSingleton = new rhit.RouteManager(startPoint, destPoint);
 		new rhit.RouteController(startPoint, destPoint);
 	} else if (document.querySelector("#settingsPage")) {
