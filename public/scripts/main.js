@@ -20,6 +20,7 @@ rhit.routeManagerSingleton = null;
 rhit.homeManagerSingleton = null;
 rhit.settingsManagerSingleton = null;
 rhit.mapDataSubsystemSingleton = null;
+rhit.devMapManagerSingleton = null;
 
 /** globals */
 rhit.FB_COLLECTION_LOCATIONS = "Locations";
@@ -337,6 +338,74 @@ rhit.RouteManager = class {
 	}
 };
 
+rhit.DevMapManager = class {
+	constructor() {
+		this._createMap();
+	}
+
+	_createMap() {
+		const startLat = 39.48310247510036;
+		const startLong = -87.32657158931686;
+
+		// OLD map bounds (tighter, doesn't fit all of adventure course)
+		// const bottomLeftCorner = L.latLng(39.479158569243786, -87.33267219017984);
+
+		const bottomLeftCorner = L.latLng(39.47891646288526, -87.33532970827527);
+		const topRightCorner = L.latLng(39.486971582184474, -87.31458987623805);
+		const bounds = L.latLngBounds(bottomLeftCorner, topRightCorner);
+
+		const routeMap = L.map('navigateMap', {
+			center: [startLat, startLong],
+			zoom: 20,
+			minZoom: 16,
+			maxBounds: bounds,
+			// zoomSnap: 0.25,
+			zoomSnap: 0.0,
+			zoomDelta: 0.1,
+			doubleClickZoom: false,
+			maxBoundsViscosity: 0.9,
+		}); // .setView([startLat, startLong], 13);
+
+		// expose for debugging purposes
+		window.exposedMapObj = routeMap;
+
+		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+		}).addTo(routeMap);
+
+		const testMarker = L.marker([startLat, startLong], {draggable: true, autoPan: true}).addTo(routeMap)
+			.bindPopup('Test popup<br> Hello.')
+			.openPopup();
+
+
+		// From https://leafletjs.com/examples/zoom-levels/example-fractional.html
+		// https://leafletjs.com/examples/zoom-levels/
+		const ZoomViewer = L.Control.extend({
+			onAdd: function() {
+				const container= L.DomUtil.create('div');
+				const gauge = L.DomUtil.create('div');
+				container.style.width = '200px';
+				container.style.background = 'rgba(255,255,255,0.5)';
+				container.style.textAlign = 'left';
+				routeMap.on('zoomstart zoom zoomend', function(ev) {
+					gauge.innerHTML = `Zoom level: ${routeMap.getZoom()}`;
+				});
+				container.appendChild(gauge);
+				return container;
+			},
+		});
+		(new ZoomViewer).addTo(routeMap);
+
+		routeMap.on('dblclick', function(event) {
+			console.log(event.latlng); // logs latlong position of where you click on the map, hopefully
+		});
+	}
+	populateMap() {
+		// add markers to the map
+		mapDataSubsystemSingleton._nodes;
+	}
+};
+
 rhit.FbAuthManager = class {
 	constructor() {
 		this._user = null;
@@ -510,6 +579,16 @@ rhit.initializePage = function () {
 
 		rhit.settingsManagerSingleton = new rhit.SettingsManager();
 		new rhit.SettingsController();
+	} else if (document.querySelector("#devPage")) {
+		// do dev page stuff
+		const authorizedUsers = {chanb: true, budakrc: true, kleinsv: true};
+
+		if (!(rhit.fbAuthManagerSingleton.isSignedIn && authorizedUsers[rhit.fbAuthManagerSingleton.uid])) {
+			window.alert("INVALID USER DETECTED");
+			window.location.href = "/";
+		}
+		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem();
+		rhit.devMapManagerSingleton = new rhit.DevMapManager();
 	}
 };
 

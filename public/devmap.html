@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Material+Icons">
+	<link rel="stylesheet" href="styles/bootstrap-material-design.min.css">
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
+	<link rel="stylesheet" href="styles/main.css">
+	<title>RoseNav</title>
+</head>
+
+<!-- =================================================================================================== -->
+
+<body>
+	<nav class="navbar navbar-dark fixed-top">
+		<a class="navbar-brand" href="./index.html">RoseNav</a>
+	</nav>
+
+
+	<div id="devPage" class="container page-container">
+		<!-- <div id="logoRow" class="row  justify-content-center">
+			<img style="width: 250px; margin-bottom: 20px;"src="https://camo.githubusercontent.com/20535b2ce5a007cae8ffff242a0b967dcb79012790c3ed210e09678d860a8117/68747470733a2f2f692e7974696d672e636f6d2f76692f666a3269345f7741356f412f6d617872657364656661756c742e6a7067"
+			 alt="pain peko">
+		</div> -->
+
+		<div id="navigateMap"></div>
+	
+	</div>
+
+<!-- =================================================================================================== -->
+
+	<!-- Bootstrap Material Design -->
+	<script src="scripts/jquery.min.js"></script>
+	<script src="scripts/popper.js"></script>
+	<script src="scripts/bootstrap-material-design.js"></script>
+	<script>$("body").bootstrapMaterialDesign();</script>
+
+	<!-- Firebase -->
+	<script src="/__/firebase/7.18.0/firebase-app.js"></script>
+	<script src="/__/firebase/7.18.0/firebase-analytics.js"></script>
+	<script src="/__/firebase/7.18.0/firebase-auth.js"></script>
+	<script src="/__/firebase/7.18.0/firebase-firestore.js"></script>
+	<script src="/__/firebase/init.js"></script>
+	<script src="scripts/rosefire.min.js"></script>
+
+	<!-- Make sure you put this AFTER Leaflet's CSS -->
+	<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+	
+	<!-- JSGraphs graph library -->
+	<!-- <script type="text/javascript" src="scripts/jsgraphs.js"></script> -->
+	<script src="https://unpkg.com/js-graph-algorithms@1.0.18/src/jsgraphs.js" crossorigin=""></script>
+	<!-- <script src="https://unpkg.com/js-graph-algorithms@1.0.18/build/jsgraphs.min.js" crossorigin=""></script> -->
+
+	<!-- Tippy.js tooltips with Popper.js -->
+	<script src="https://unpkg.com/@popperjs/core@2"></script>
+	<script src="https://unpkg.com/tippy.js@6"></script>
+
+	<script type="text/javascript" src="scripts/main.js"></script>
+</body>
+
+</html>
