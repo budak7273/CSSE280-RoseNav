@@ -13,7 +13,7 @@ var movabletype = movabletype || {};
 /* eslint-enable no-var */
 
 // eslint-disable-next-line max-len
-rhit.supportedLocations = ["Mussallem Union", "Lakeside Hall", "Percopo Hall", "Apartments East", "Apartments West", "Blumberg Hall", "Scharpenburg Hall", "Mees Hall", "BSB Hall", "Speed Hall", "Deming Hall", "O259", "O269", "O267", "O257"];
+rhit.supportedLocations = ["Mussallem Union", "Lakeside Hall", "Percopo Hall", "Apartments East", "Apartments West", "Blumberg Hall", "Scharpenberg Hall", "Mees Hall", "BSB Hall", "Speed Hall", "Deming Hall", "O259", "O269", "O267", "O257"];
 
 // Singletons
 rhit.fbAuthManagerSingleton = null;
@@ -172,6 +172,7 @@ movabletype.haversine = function(lat1, lat2, lon1, lon2) {
 	return R * c; // in metres
 };
 
+// HomeController controls the home page, including displaying search autocomplete and route redirects
 rhit.HomeController = class {
 	constructor() {
 		const startInput = document.querySelector("#startInput");
@@ -243,6 +244,8 @@ rhit.HomeController = class {
 
 	}
 };
+
+// HomeManager manages both location inputs on the home page
 rhit.HomeManager = class {
 	constructor() {
 
@@ -272,6 +275,7 @@ rhit.HomeManager = class {
 	}
 };
 
+// RouteController controls the route page's html
 rhit.RouteController = class {
 	constructor(startPoint, destPoint) {
 		this._startPoint = startPoint;
@@ -287,6 +291,7 @@ rhit.RouteController = class {
 	}
 };
 
+// RouteManager draws the map and manages the routing
 rhit.RouteManager = class {
 	constructor(startPoint, destPoint) {
 		this._startPoint = startPoint;
@@ -296,6 +301,7 @@ rhit.RouteManager = class {
 		const isValidEnd = rhit.supportedLocations.includes(destPoint);
 		if (!isValidStart || !isValidEnd) {
 			console.error("One of the destinations entered was not in the supported locations list");
+			// TODO: notify and redirect users back to route creation page instead of proceeding with routing
 		}
 
 		this._createMap();
@@ -360,6 +366,7 @@ rhit.RouteManager = class {
 	}
 };
 
+// DevMapManager allows devs to manage nodes and paths via clicks
 rhit.DevMapManager = class {
 	constructor() {
 		this._createMap();
@@ -427,6 +434,7 @@ rhit.DevMapManager = class {
 	}
 };
 
+// FbAuthManager is responsible for managing user logins
 rhit.FbAuthManager = class {
 	constructor() {
 		this._user = null;
@@ -480,6 +488,7 @@ rhit.FbAuthManager = class {
 	}
 };
 
+// MapDataSubsystem stores the nodes and connections for the map
 rhit.MapDataSubsystem = class {
 	constructor(shouldBuildGraph, shouldBuildNames, callbackWhenDone) {
 		this._cachedDataVersion = parseInt(localStorage.getItem(rhit.KEY_STORAGE_VERSION)) || -1; // Version is stored or blank
@@ -667,9 +676,12 @@ rhit.MapDataSubsystem = class {
 	}
 };
 
-// May need to convert these into plain JS objects instead of classes so they can be serialized
+// May need to convert these two classes into plain JS objects instead of classes so they can be serialized
 // Or maybe use these as wrapper classes that the serializable JS object gets turned into?
 // Maybe make factories to produce them given cached/fb data
+
+
+// MapNode stores information for its particular location
 rhit.MapNode = class {
 	constructor (fbKey, fbLocationDocumentData, vertexIndex) {
 		this.fbKey = fbKey;
@@ -708,7 +720,7 @@ rhit.Connection = class {
 	// speedModifiedDistance(speedMult) {
 	// 	return speedMult * this.rawDistance();
 	// }
-}
+};
 
 rhit.initializePage = function () {
 	const urlParams = new URLSearchParams(window.location.search);
