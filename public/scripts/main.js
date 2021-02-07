@@ -188,6 +188,21 @@ rhit.HomeController = class {
 		document.querySelector("#menuSignIn").onclick = (event) => {
 			rhit.fbAuthManagerSingleton.signIn();
 		};
+		document.querySelector("#menuSavedSpeeds").onclick = (event) => {
+			window.location.href = "./settings.html";
+		};
+		document.querySelector("#menuSavedLocations").onclick = (event) => {
+			// rhit.fbAuthManagerSingleton.signIn();
+		};
+		document.querySelector("#menuClearData").onclick = (event) => {
+			// rhit.fbAuthManagerSingleton.signIn();
+		};
+		document.querySelector("#menuReportProblem").onclick = (event) => {
+			// rhit.fbAuthManagerSingleton.signIn();
+		};
+		document.querySelector("#menuSignOut").onclick = (event) => {
+			rhit.fbAuthManagerSingleton.signOut();
+		};
 		if (rhit.fbAuthManagerSingleton.isSignedIn) {
 			document.querySelector("#signInOutButton").onclick = (event) => {
 				rhit.fbAuthManagerSingleton.signOut();
@@ -432,6 +447,16 @@ rhit.DevMapManager = class {
 	populateMap() {
 		// TODO add markers to the map
 	}
+};
+
+// SettingsController
+rhit.SettingsController = class {
+
+};
+
+// SettingsManager
+rhit.SettingsManager = class {
+
 };
 
 // FbAuthManager is responsible for managing user logins
