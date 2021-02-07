@@ -9,6 +9,7 @@
 /* eslint-disable no-var */
 var rhit = rhit || {};
 var w3schools = w3schools || {};
+var movabletype = movabletype || {};
 /* eslint-enable no-var */
 
 // eslint-disable-next-line max-len
@@ -29,7 +30,12 @@ rhit.FB_KEY_LOC_GEO = "location";
 rhit.FB_KEY_LOC_NAME = "name";
 rhit.FB_KEY_LOC_ALIAS = "name-aliases";
 
+// This might be able to be replaced with Cloud Firestore offline data access
+// https://firebase.google.com/docs/firestore/manage-data/enable-offline
 rhit.KEY_STORAGE_VERSION = "local-data-version";
+rhit.KEY_STORAGE_NODES = "local-data-nodes";
+rhit.KEY_STORAGE_NAMES = "local-data-names";
+rhit.KEY_STORAGE_CONNECTIONS = "local-data-connections";
 
 
 // adapted from https://www.w3schools.com/howto/howto_js_autocomplete.asp
@@ -149,6 +155,22 @@ w3schools.autocomplete = function (inp, arr) {
 	}
 };
 
+// adapted from https://www.movable-type.co.uk/scripts/latlong.html
+// those madlads used greek symbol characters as their variable names
+movabletype.haversine = function(lat1, lat2, lon1, lon2) {
+	const R = 6371e3; // metres
+	const phi1 = lat1 * Math.PI/180; // phi, lambda in radians
+	const phi2 = lat2 * Math.PI/180;
+	const deltaPhi = (lat2-lat1) * Math.PI/180;
+	const deltaLambda = (lon2-lon1) * Math.PI/180;
+
+	const a = Math.sin(deltaPhi/2) * Math.sin(deltaPhi/2) +
+			Math.cos(phi1) * Math.cos(phi2) *
+			Math.sin(deltaLambda/2) * Math.sin(deltaLambda/2);
+	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+	return R * c; // in metres
+};
 
 rhit.HomeController = class {
 	constructor() {
@@ -401,8 +423,7 @@ rhit.DevMapManager = class {
 		});
 	}
 	populateMap() {
-		// add markers to the map
-		mapDataSubsystemSingleton._nodes;
+		// TODO add markers to the map
 	}
 };
 
@@ -460,17 +481,17 @@ rhit.FbAuthManager = class {
 };
 
 rhit.MapDataSubsystem = class {
-	constructor() {
-		this._dataVersion = parseInt(localStorage.getItem(rhit.KEY_STORAGE_VERSION)) || -1; // Version is stored or blank
-		this._nodes = {};
-		this._numNodes = 0;
-		this._connections = {};
+	constructor(shouldBuildGraph, shouldBuildNames, callbackWhenDone) {
+		this._cachedDataVersion = parseInt(localStorage.getItem(rhit.KEY_STORAGE_VERSION)) || -1; // Version is stored or blank
+		this._liveDataVersion = null;
+
+		// An object used as a map. The keys are firebase ID strings, the values are the MapNodes they correspond to.
+		this._fbIDToMapNode = {};
+		// An array used as a map. The index is the index of the vertex in the graph, the stored value is the firebase ID string.
+		this._graphIndexToFbID = [];
+		this._connections = null;
 		this._namesList = [];
 
-		// https://www.npmjs.com/package/js-graph-algorithms#create-directed-weighted-graph
-		// https://rawgit.com/chen0040/js-graph-algorithms/master/examples/example-weighted-digraph.html
-		// const g = new jsgraphs.WeightedDiGraph(8);
-		// console.log(g);
 		this.navGraph = null;
 
 		this._documentSnapshots = [];
@@ -479,48 +500,166 @@ rhit.MapDataSubsystem = class {
 		this._connectionsRef = this._ref.collection(rhit.FB_COLLECTION_CONNECTIONS);
 		this._unsubscribe = null;
 
-		this._fetchMapDataIfNeededAndBuildGraph();
+		this._shouldBuildGraph = shouldBuildGraph;
+		this._shouldBuildNames = shouldBuildNames;
+		// this._callback = callbackWhenDone;
+
+		// using callbacks to sort of do async await here ... probably a better way to do this...
+		this._buildNodeData().then((liveDataVersion) => {
+			this._liveDataVersion = liveDataVersion;
+			console.log("MapDataSubsystem has finished prepping data");
+		}).then(() => {
+			if (shouldBuildNames) {
+				console.warn("Building names TODO");
+			}
+		}).then(() => {
+			if (shouldBuildGraph) {
+				this._buildConnectionData().then((connectionData) => {
+					this._connections = connectionData;
+					this._constructGraph(connectionData);
+					console.log("MapDataSubsystem done building graph");
+				});
+			}
+		}).then(() => this._writeCachedMapData(this._liveDataVersion)).catch((error) => {
+			console.error("MapDataSubsystem failed while prepping data:", error);
+		});
+
+		// this._buildRequestedData(this);
 	}
 
-	_fetchMapDataIfNeededAndBuildGraph() {
-		console.log(`Local map data version is ${this._dataVersion}`);
+	get numNodes() {
+		return this._graphIndexToFbID.length;
+	}
 
+	getFbIDFromGraphVertexIndex(index) {
+		return this._graphIndexToFbID[index];
+	}
+
+	getMapNodeFromGraphVertexIndex(index) {
+		const fbID = this.getFbIDFromGraphVertexIndex(index);
+		return this._fbIDToMapNode[fbID];
+	}
+
+	getMapNodeFromFbID(fbID) {
+		return this._fbIDToMapNode[fbID];
+	}
+
+	getGraphVertexIndexFromFbID(fbID) {
+		return this._fbIDToMapNode[fbID].vertexIndex;
+	}
+
+	getMapNodeDistanceMeters(node1, node2) {
+		return movabletype.haversine(node1.lat, node2.lat, node1.lon, node2.lon);
+	}
+
+	// This method is a little funky. Ideally, it would be an async method, but the place it
+	// would need to be awaited is the constructor, which can't be async. So instead I do promise stuff.
+	// There is probably a better way to do this. -Rob
+	_buildNodeData() {
+		console.log(`Local map data version is ${this._cachedDataVersion}`);
 		const liveMapVersionRef = this._ref.collection("Constants").doc("Versions");
 
-		liveMapVersionRef.get().then((doc) => {
+		return new Promise((resolve, reject) => liveMapVersionRef.get().then((doc) => {
 			if (doc.exists) {
 				// console.log(doc.data());
+				const liveDataVersion = doc.data().map.seconds;
 
-				if (doc.data().map.seconds > this._dataVersion) {
-					console.log("Map data being fetched from Firebase");
+				if (liveDataVersion > this._cachedDataVersion) {
+					console.log("Map data being fetched and rebuilt from Firebase");
 
 					this._locationsRef.get().then((querySnapshot) => {
-						console.log(querySnapshot.size);
-						this._numNodes = querySnapshot.size;
+						console.log("Num nodes:", querySnapshot.size);
 
+						let index = 0;
 						querySnapshot.forEach((doc) => {
 							// doc.data() is never undefined for query doc snapshots
 							// console.log(doc.id, " => ", doc.data());
-							const thisNode = new rhit.MapNode(doc.id, doc.data());
-							this._nodes[doc.id] = thisNode;
-							window[doc.id] = thisNode;
-						});
-					});
+							const thisNode = new rhit.MapNode(doc.id, doc.data(), index);
+							this._fbIDToMapNode[doc.id] = thisNode;
+							this._graphIndexToFbID.push(doc.id);
+							index++;
 
-					// TODO update local version on successful fetch
+							// Debug
+							// window[doc.id] = thisNode;
+						});
+						resolve(liveDataVersion);
+					});
 				} else {
-					console.log("Map data reused from local storage");
+					console.log("Map data being rebuilt from local storage");
+					reject(new Error("Unimplemented: map data building from local storage"));
 				}
 			} else {
-				console.error("No such document!");
+				reject(new Error("No such document - map data version"));
 			}
-		}).catch((error) => {
-			console.error("error getting version: ", error);
-		});
+		}));
+		// .catch((error) => {
+		// 	console.error("error getting live data version: ", error);
+		// 	return false;
+		// });
 	}
 
-	_constructGraph() {
+	// TODO might change order of execution here to merge it into _constructGraph
+	_buildConnectionData() {
+		return new Promise((resolve, reject) => this._connectionsRef.get().then((querySnapshot) => {
+			console.log("Num connections:", querySnapshot.size);
+			const connectionData = {};
+			querySnapshot.forEach((doc) => {
+				// doc.data() is never undefined for query doc snapshots
+				// console.log(doc.id, " => ", doc.data());
+				const thisConnection = new rhit.Connection(doc.id, doc.data());
+				connectionData[doc.id] = thisConnection;
 
+				// Debug
+				// window[doc.id] = thisConnection;
+			});
+			resolve(connectionData);
+		}));
+	}
+
+	_constructGraph(connectionData) {
+		// https://www.npmjs.com/package/js-graph-algorithms#create-directed-weighted-graph
+		// https://rawgit.com/chen0040/js-graph-algorithms/master/examples/example-weighted-digraph.html
+		const graph = new jsgraphs.WeightedDiGraph(this.numNodes);
+
+		for (const key in connectionData) {
+			// Special safety check, see https://eslint.org/docs/rules/guard-for-in
+			if (Object.hasOwnProperty.call(connectionData, key)) {
+				const connect = connectionData[key];
+
+				// get relevant map nodes from the firebase reference data
+				const startMapNode = this.getMapNodeFromFbID(connect.place1FbID);
+				const endMapNode = this.getMapNodeFromFbID(connect.place2FbID);
+				const distanceMeters = this.getMapNodeDistanceMeters(startMapNode, endMapNode);
+
+				// if it's a staircase, it's worth extra distance
+				const adjustedDistance = connect.staircase ? distanceMeters * STAIRCASE_DISTANCE_MULT : distanceMeters;
+
+				// add the graph edge
+				graph.addEdge(new jsgraphs.Edge(startMapNode.vertexIndex, endMapNode.vertexIndex, adjustedDistance));
+
+				// label the nodes with their names.
+				// probably a better place for this, but the graph doesn't exist until now.
+				// note that this overwrites names a bunch of times (replace this later probably)
+				graph.node(startMapNode.vertexIndex).label = startMapNode.name;
+				graph.node(endMapNode.vertexIndex).label = endMapNode.name;
+			}
+		}
+
+		this.navGraph = graph;
+		// console.log(g);
+
+		// Debug
+		window.graph = graph;
+
+		return graph;
+	}
+
+	_writeCachedMapData(versionEpochTime) {
+		// enable when actually storing version is desired
+		// localStorage.setItem(rhit.KEY_STORAGE_VERSION, versionEpochTime);
+		localStorage.setItem(rhit.KEY_STORAGE_NODES, JSON.stringify(this._fbIDToMapNode));
+		localStorage.setItem(rhit.KEY_STORAGE_CONNECTIONS, JSON.stringify(this._connections));
+		localStorage.setItem(rhit.KEY_STORAGE_NAMES, JSON.stringify(this._namesList));
 	}
 
 	get locationNames() {
@@ -528,12 +667,16 @@ rhit.MapDataSubsystem = class {
 	}
 };
 
+// May need to convert these into plain JS objects instead of classes so they can be serialized
+// Or maybe use these as wrapper classes that the serializable JS object gets turned into?
+// Maybe make factories to produce them given cached/fb data
 rhit.MapNode = class {
-	constructor (fbKey, fbLocation) {
+	constructor (fbKey, fbLocationDocumentData, vertexIndex) {
 		this.fbKey = fbKey;
-		this.geopoint = fbLocation[rhit.FB_KEY_LOC_GEO];
-		this.name = fbLocation[rhit.FB_KEY_LOC_NAME] || `Unnamed node ${fbKey}`;
-		this.aliasList = fbLocation[rhit.FB_KEY_LOC_ALIAS] || [];
+		this.geopoint = fbLocationDocumentData[rhit.FB_KEY_LOC_GEO];
+		this.name = fbLocationDocumentData[rhit.FB_KEY_LOC_NAME] || `Unnamed node ${fbKey}`;
+		this.aliasList = fbLocationDocumentData[rhit.FB_KEY_LOC_ALIAS] || [];
+		this.vertexIndex = vertexIndex;
 	}
 
 	validAlias(name) {
@@ -544,10 +687,28 @@ rhit.MapNode = class {
 		return this.geopoint.df;
 	}
 
-	get long() {
+	get lon() {
 		return this.geopoint.wf;
 	}
 };
+
+// TODO might want to change this to have things like the distance (have it be made elsewhere)
+rhit.Connection = class {
+	constructor (fbKey, fbConnectionDocumentData) {
+		this.fbKey = fbKey;
+		this.place1FbID = fbConnectionDocumentData.place1.id;
+		this.place2FbID = fbConnectionDocumentData.place2.id;
+		this.staircase = fbConnectionDocumentData["staircase?"];
+	}
+
+	// get rawDistance() {
+	// 	return 0.0; // TODO
+	// }
+
+	// speedModifiedDistance(speedMult) {
+	// 	return speedMult * this.rawDistance();
+	// }
+}
 
 rhit.initializePage = function () {
 	const urlParams = new URLSearchParams(window.location.search);
@@ -560,7 +721,7 @@ rhit.initializePage = function () {
 		console.log("You are on the Main Home page.");
 
 		// Needs map data for place search
-		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem();
+		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(false, true);
 		rhit.homeManagerSingleton = new this.HomeManager();
 		new rhit.HomeController();
 	} else if (document.querySelector("#routePage")) {
@@ -571,7 +732,7 @@ rhit.initializePage = function () {
 		const destPoint = urlParams.get("dest");
 
 		// Needs map data for navigation
-		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem();
+		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(true, true);
 		rhit.routeManagerSingleton = new rhit.RouteManager(startPoint, destPoint);
 		new rhit.RouteController(startPoint, destPoint);
 	} else if (document.querySelector("#settingsPage")) {
@@ -587,7 +748,7 @@ rhit.initializePage = function () {
 			window.alert("INVALID USER DETECTED");
 			window.location.href = "/";
 		}
-		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem();
+		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(true, true);
 		rhit.devMapManagerSingleton = new rhit.DevMapManager();
 	}
 };
