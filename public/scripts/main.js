@@ -238,6 +238,7 @@ rhit.HomeController = class {
 		const signedInText = document.querySelector("#signInOutButtonText");
 		const sandwichSignedOut = document.querySelector("#sandwichSignedOut");
 		const sandwichSignedIn = document.querySelector("#sandwichSignedIn");
+		const signedInIcon = document.querySelector("#signInOutIcon");
 
 		const isSignedIn = rhit.fbAuthManagerSingleton.isSignedIn;
 
@@ -245,18 +246,16 @@ rhit.HomeController = class {
 			const signedInUID = rhit.fbAuthManagerSingleton.uid;
 			signedInStatus.innerHTML = `Signed in as ${signedInUID}`;
 			signedInText.innerHTML = "Sign Out";
+			signedInIcon.innerHTML = "logout";
 			sandwichSignedIn.style.display = "block";
 			sandwichSignedOut.style.display = "none";
 		} else {
 			signedInStatus.innerHTML = "You aren't currently signed in.";
 			signedInText.innerHTML = "Sign In";
+			signedInIcon.innerHTML = "login";
 			sandwichSignedIn.style.display = "none";
 			sandwichSignedOut.style.display = "block";
 		}
-	}
-
-	methodName() {
-
 	}
 };
 
@@ -311,6 +310,7 @@ rhit.RouteManager = class {
 	constructor(startPoint, destPoint) {
 		this._startPoint = startPoint;
 		this._destPoint = destPoint;
+		this._routeMap = null;
 
 		const isValidStart = rhit.supportedLocations.includes(startPoint);
 		const isValidEnd = rhit.supportedLocations.includes(destPoint);
@@ -352,9 +352,9 @@ rhit.RouteManager = class {
 			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 		}).addTo(routeMap);
 
-		const testMarker = L.marker([startLat, startLong], {draggable: true, autoPan: true}).addTo(routeMap)
-			.bindPopup('Test popup<br> Hello.')
-			.openPopup();
+		// const testMarker = L.marker([startLat, startLong], {draggable: true, autoPan: true}).addTo(routeMap)
+		// 	.bindPopup('Test popup<br> Hello.')
+		// 	.openPopup();
 
 
 		// From https://leafletjs.com/examples/zoom-levels/example-fractional.html
@@ -376,8 +376,33 @@ rhit.RouteManager = class {
 		(new ZoomViewer).addTo(routeMap);
 
 		routeMap.on('dblclick', function(event) {
-			console.log(event.latlng); // logs latlong position of where you click on the map, hopefully
+			console.log(event.latlng); // logs latlng position of where you click on the map, hopefully
 		});
+
+		this._routeMap = routeMap;
+	}
+
+	spawnMarkerFromMapNode(mapNode, map) {
+		// console.log(mapNode);
+		return L.marker([mapNode.lat, mapNode.lon], {/* draggable: true, */autoPan: true})
+			.addTo(map)
+			.bindPopup(`id:<span class="code">${mapNode.fbKey}</span><br/>n:${mapNode.name}<br/>i:${mapNode.vertexIndex}`);
+	}
+
+	populateMap() {
+		// console.log(rhit.mapDataSubsystemSingleton.nodeData);
+		for (const mapNodeItem in rhit.mapDataSubsystemSingleton.nodeData) {
+			if (Object.hasOwnProperty.call(rhit.mapDataSubsystemSingleton.nodeData, mapNodeItem)) {
+				const mapNode = rhit.mapDataSubsystemSingleton.nodeData[mapNodeItem];
+				this.spawnMarkerFromMapNode(mapNode, this._routeMap);
+			}
+		}
+		for (const connectionItem in rhit.mapDataSubsystemSingleton.connectionData) {
+			if (Object.hasOwnProperty.call(rhit.mapDataSubsystemSingleton.connectionData, connectionItem)) {
+				const connection = rhit.mapDataSubsystemSingleton.connectionData[connectionItem];
+				console.log(connection);
+			}
+		}
 	}
 };
 
@@ -385,6 +410,7 @@ rhit.RouteManager = class {
 rhit.DevMapManager = class {
 	constructor() {
 		this._createMap();
+		this.populateMap();
 	}
 
 	_createMap() {
@@ -441,22 +467,33 @@ rhit.DevMapManager = class {
 		(new ZoomViewer).addTo(routeMap);
 
 		routeMap.on('dblclick', function(event) {
-			console.log(event.latlng); // logs latlong position of where you click on the map, hopefully
+			console.log(event.latlng); // logs latlon position of where you click on the map, hopefully
 		});
 	}
 	populateMap() {
 		// TODO add markers to the map
+		const nodeMap = rhit.mapDataSubsystemSingleton._fbIDToMapNode;
+		for (const nodeId in nodeMap) {
+			if (Object.hasOwnProperty.call(nodeMap, nodeId)) {
+				const element = nodeMap[nodeId];
+				console.log(`${nodeId}: ${element}`);
+			}
+		}
 	}
 };
 
 // SettingsController
 rhit.SettingsController = class {
-
+	constructor() {
+		console.log("Settings controller created");
+	}
 };
 
 // SettingsManager
 rhit.SettingsManager = class {
-
+	constructor() {
+		console.log("Settings manager created");
+	}
 };
 
 // FbAuthManager is responsible for managing user logins
@@ -539,30 +576,68 @@ rhit.MapDataSubsystem = class {
 		// this._callback = callbackWhenDone;
 
 		// using callbacks to sort of do async await here ... probably a better way to do this...
-		this._buildNodeData().then((liveDataVersion) => {
-			this._liveDataVersion = liveDataVersion;
-			console.log("MapDataSubsystem has finished prepping data");
-		}).then(() => {
-			if (shouldBuildNames) {
-				console.warn("Building names TODO");
-			}
-		}).then(() => {
-			if (shouldBuildGraph) {
-				this._buildConnectionData().then((connectionData) => {
-					this._connections = connectionData;
-					this._constructGraph(connectionData);
-					console.log("MapDataSubsystem done building graph");
-				});
-			}
-		}).then(() => this._writeCachedMapData(this._liveDataVersion)).catch((error) => {
-			console.error("MapDataSubsystem failed while prepping data:", error);
-		});
+		// this._buildNodeData().then((liveDataVersion) => {
+		// 	this._liveDataVersion = liveDataVersion;
+		// 	console.log("MapDataSubsystem has finished prepping data");
+		// }).then(() => {
+		// 	if (shouldBuildNames) {
+		// 		console.warn("Building names TODO");
+		// 	}
+		// }).then(() => {
+		// 	if (shouldBuildGraph) {
+		// 		this._buildConnectionData().then((connectionData) => {
+		// 			this._connections = connectionData;
+		// 			this._constructGraph(connectionData);
+		// 			console.log("MapDataSubsystem done building graph");
+		// 		});
+		// 	}
+		// }).then(() => {
+		// 	this._writeCachedMapData(this._liveDataVersion);
+		// }).then(() => {
+		// 	callbackWhenDone();
+		// }).catch((error) => {
+		// 	console.error("MapDataSubsystem failed while prepping data:", error);
+		// });
+		this._prepareData(callbackWhenDone);
 
 		// this._buildRequestedData(this);
 	}
 
+	async _prepareData(finalCallback) {
+		try {
+			await this._buildNodeData();
+			if (this._shouldBuildNames) {
+				console.warn("Building names TODO");
+			}
+			if (this._shouldBuildGraph) {
+				const connectionData = await this._buildConnectionData();
+				this._connections = connectionData;
+				await this._constructGraph(connectionData);
+			}
+			await this._writeCachedMapData(this._liveDataVersion);
+			console.log("Calling final MapDataSubsystem callback...");
+			await finalCallback();
+		} catch (error) {
+			console.error("MapDataSubsystem failed while prepping data:", error);
+		}
+	}
+
 	get numNodes() {
 		return this._graphIndexToFbID.length;
+	}
+
+	get nodeData() {
+		if (this._fbIDToMapNode == null) {
+			console.error("Tried to access map nodes before they were loaded; returning null instead");
+		}
+		return this._fbIDToMapNode;
+	}
+
+	get connectionData() {
+		if (this._connections == null) {
+			console.error("Tried to access map connections before they were loaded; returning null instead");
+		}
+		return this._connections;
 	}
 
 	getFbIDFromGraphVertexIndex(index) {
@@ -697,6 +772,9 @@ rhit.MapDataSubsystem = class {
 	}
 
 	get locationNames() {
+		if (this._namesList == null) {
+			console.error("Tried to access names before they were loaded; returning null instead");
+		}
 		return this._namesList;
 	}
 };
@@ -758,7 +836,9 @@ rhit.initializePage = function () {
 		console.log("You are on the Main Home page.");
 
 		// Needs map data for place search
-		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(false, true);
+		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(false, true, () => {
+			console.log("Home page map system callback");
+		});
 		rhit.homeManagerSingleton = new this.HomeManager();
 		new rhit.HomeController();
 	} else if (document.querySelector("#routePage")) {
@@ -769,7 +849,11 @@ rhit.initializePage = function () {
 		const destPoint = urlParams.get("dest");
 
 		// Needs map data for navigation
-		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(true, true);
+		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(true, true, () => {
+			console.log("Map data system done loading callback");
+			// This will be called after routeManagerSingleton exists
+			rhit.routeManagerSingleton.populateMap();
+		});
 		rhit.routeManagerSingleton = new rhit.RouteManager(startPoint, destPoint);
 		new rhit.RouteController(startPoint, destPoint);
 	} else if (document.querySelector("#settingsPage")) {
@@ -785,8 +869,9 @@ rhit.initializePage = function () {
 			window.alert("INVALID USER DETECTED");
 			window.location.href = "/";
 		}
-		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(true, true);
-		rhit.devMapManagerSingleton = new rhit.DevMapManager();
+		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(true, true, () => {
+			rhit.devMapManagerSingleton = new rhit.DevMapManager();
+		});
 	}
 };
 
