@@ -337,12 +337,20 @@ rhit.RouteManager = class {
 
 		// Layer setup
 
+		/* eslint-disable max-len */
 		const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 		});
+		// I signed up for an account (budak7273) so we're allowed to use this since we follow their attribution rules
+		// https://github.com/leaflet-extras/leaflet-providers#esriarcgis
+		const Esri_WorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+			attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+		});
+		/* eslint-enable max-len */
 
 		const baseLayers = {
 			"Map": osmLayer,
+			"Aerial": Esri_WorldImagery,
 		};
 		const overlays = {
 			"Markers": this._markerLayer,
@@ -373,7 +381,7 @@ rhit.RouteManager = class {
 
 		// From https://leafletjs.com/examples/zoom-levels/example-fractional.html
 		// https://leafletjs.com/examples/zoom-levels/
-		const ZoomViewer = L.Control.extend({
+		/* const ZoomViewer = L.Control.extend({
 			onAdd: function() {
 				const container= L.DomUtil.create('div');
 				const gauge = L.DomUtil.create('div');
@@ -386,8 +394,9 @@ rhit.RouteManager = class {
 				container.appendChild(gauge);
 				return container;
 			},
-		});
-		(new ZoomViewer).addTo(routeMap);
+		}); */
+		// Debugging zoom modal (uncomment the below line to turn it on)
+		// (new ZoomViewer).addTo(routeMap);
 
 		routeMap.on('dblclick', function(event) {
 			console.log(event.latlng); // logs latlng position of where you click on the map, hopefully
@@ -568,6 +577,15 @@ rhit.DevMapManager = class {
 rhit.SettingsController = class {
 	constructor() {
 		console.log("Settings controller created");
+		document.querySelector("#speedToggleWalking").onclick = (event) => {
+			// switch user speed to walking
+		};
+		document.querySelector("#speedToggleJogging").onclick = (event) => {
+			// switch user speed to jogging
+		};
+		document.querySelector("#speedToggleSprinting").onclick = (event) => {
+			// switch user speed to sprinting
+		};
 	}
 };
 
