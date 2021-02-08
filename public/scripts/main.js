@@ -311,6 +311,8 @@ rhit.RouteManager = class {
 		this._startPoint = startPoint;
 		this._destPoint = destPoint;
 		this._routeMap = null;
+		this._markerLayer = L.layerGroup([]);
+		this._connectionLayer = L.layerGroup([]);
 
 		const isValidStart = rhit.supportedLocations.includes(startPoint);
 		const isValidEnd = rhit.supportedLocations.includes(destPoint);
@@ -323,6 +325,159 @@ rhit.RouteManager = class {
 	}
 
 	_createMap() {
+		const startLat = 39.48310247510036;
+		const startLong = -87.32657158931686;
+
+		// OLD map bounds (tighter, doesn't fit all of adventure course)
+		// const bottomLeftCorner = L.latLng(39.479158569243786, -87.33267219017984);
+
+		const bottomLeftCorner = L.latLng(39.47891646288526, -87.33532970827527);
+		const topRightCorner = L.latLng(39.486971582184474, -87.31458987623805);
+		const bounds = L.latLngBounds(bottomLeftCorner, topRightCorner);
+
+		// Layer setup
+
+		const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+		});
+
+		const baseLayers = {
+			"Map": osmLayer,
+		};
+		const overlays = {
+			"Markers": this._markerLayer,
+			"Connections": this._connectionLayer,
+		};
+
+		const routeMap = L.map('navigateMap', {
+			center: [startLat, startLong],
+			zoom: 20,
+			minZoom: 16,
+			maxBounds: bounds,
+			// zoomSnap: 0.25,
+			zoomSnap: 0.0,
+			zoomDelta: 0.1,
+			doubleClickZoom: false,
+			maxBoundsViscosity: 0.9,
+			layers: [osmLayer, this._markerLayer, this._connectionLayer],
+		}); // .setView([startLat, startLong], 13);
+
+		L.control.layers(baseLayers, overlays).addTo(routeMap);
+
+		// expose for debugging purposes
+		window.exposedMapObj = routeMap;
+
+		// const testMarker = L.marker([startLat, startLong], {draggable: true, autoPan: true}).addTo(routeMap)
+		// 	.bindPopup('Test popup<br> Hello.')
+		// 	.openPopup();
+
+		// From https://leafletjs.com/examples/zoom-levels/example-fractional.html
+		// https://leafletjs.com/examples/zoom-levels/
+		const ZoomViewer = L.Control.extend({
+			onAdd: function() {
+				const container= L.DomUtil.create('div');
+				const gauge = L.DomUtil.create('div');
+				container.style.width = '200px';
+				container.style.background = 'rgba(255,255,255,0.5)';
+				container.style.textAlign = 'left';
+				routeMap.on('zoomstart zoom zoomend', function(ev) {
+					gauge.innerHTML = `Zoom level: ${routeMap.getZoom()}`;
+				});
+				container.appendChild(gauge);
+				return container;
+			},
+		});
+		(new ZoomViewer).addTo(routeMap);
+
+		routeMap.on('dblclick', function(event) {
+			console.log(event.latlng); // logs latlng position of where you click on the map, hopefully
+		});
+
+		this._routeMap = routeMap;
+	}
+
+	spawnMarkerFromMapNode(mapNode, map) {
+		// console.log(mapNode);
+		return L.marker([mapNode.lat, mapNode.lon], {/* draggable: true, */autoPan: true})
+			.bindPopup(`id:<span class="code">${mapNode.fbKey}</span><br/>n:${mapNode.name}<br/>i:${mapNode.vertexIndex}`)
+			.addTo(this._markerLayer);
+	}
+
+	drawMapLineFromConnection(connection, map) {
+		const place1 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place1FbID);
+		const place2 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place2FbID);
+		L.polyline([[place1.lat, place1.lon], [place2.lat, place2.lon]], {
+			color: "red",
+			pane: "shadowPane",
+		})
+			.addTo(this._connectionLayer);
+	}
+
+	populateMap() {
+		// console.log(rhit.mapDataSubsystemSingleton.nodeData);
+		for (const mapNodeItem in rhit.mapDataSubsystemSingleton.nodeData) {
+			if (Object.hasOwnProperty.call(rhit.mapDataSubsystemSingleton.nodeData, mapNodeItem)) {
+				const mapNode = rhit.mapDataSubsystemSingleton.nodeData[mapNodeItem];
+				this.spawnMarkerFromMapNode(mapNode, this._routeMap);
+			}
+		}
+		for (const connectionItem in rhit.mapDataSubsystemSingleton.connectionData) {
+			if (Object.hasOwnProperty.call(rhit.mapDataSubsystemSingleton.connectionData, connectionItem)) {
+				const connection = rhit.mapDataSubsystemSingleton.connectionData[connectionItem];
+				this.drawMapLineFromConnection(connection, this._routeMap);
+			}
+		}
+	}
+};
+
+
+// DevMapManager allows devs to manage nodes and paths via clicks
+rhit.DevMapManager = class {
+	constructor() {
+		const routeMap = this._createDevMap();
+		this.populateDevMap(routeMap);
+		this.state = "default";
+		this.modeIndicator = document.querySelector("#modeIndicator");
+		this.modeIndicator.innerHTML = `Editing Mode: ${this.state}`;
+		document.addEventListener('keydown', (event) =>{
+			// console.log(`triggering keypress listener with key ${event.key}`);
+			switch (event.key) {
+			case "Shift":
+				switch (this.state) {
+				case "default":
+					this.state = "connector";
+					break;
+				case "connector":
+					this.state = "disconnector";
+					break;
+				case "disconnector":
+					this.state = "deleter";
+					break;
+				case "deleter":
+					this.state = "default";
+					break;
+				}
+				break;
+			case "1":
+				this.state = "default";
+				break;
+			case "2":
+				this.state = "connector";
+				break;
+			case "3":
+				this.state = "disconnector";
+				break;
+			case "4":
+				this.state = "deleter";
+				break;
+			default:
+				break;
+			}
+			this.modeIndicator.innerHTML = `Editing Mode: ${this.state}`;
+		});
+	}
+
+	_createDevMap() {
 		const startLat = 39.48310247510036;
 		const startLong = -87.32657158931686;
 
@@ -376,109 +531,36 @@ rhit.RouteManager = class {
 		(new ZoomViewer).addTo(routeMap);
 
 		routeMap.on('dblclick', function(event) {
-			console.log(event.latlng); // logs latlng position of where you click on the map, hopefully
-		});
-
-		this._routeMap = routeMap;
-	}
-
-	spawnMarkerFromMapNode(mapNode, map) {
-		// console.log(mapNode);
-		return L.marker([mapNode.lat, mapNode.lon], {/* draggable: true, */autoPan: true})
-			.addTo(map)
-			.bindPopup(`id:<span class="code">${mapNode.fbKey}</span><br/>n:${mapNode.name}<br/>i:${mapNode.vertexIndex}`);
-	}
-
-	populateMap() {
-		// console.log(rhit.mapDataSubsystemSingleton.nodeData);
-		for (const mapNodeItem in rhit.mapDataSubsystemSingleton.nodeData) {
-			if (Object.hasOwnProperty.call(rhit.mapDataSubsystemSingleton.nodeData, mapNodeItem)) {
-				const mapNode = rhit.mapDataSubsystemSingleton.nodeData[mapNodeItem];
-				this.spawnMarkerFromMapNode(mapNode, this._routeMap);
-			}
-		}
-		for (const connectionItem in rhit.mapDataSubsystemSingleton.connectionData) {
-			if (Object.hasOwnProperty.call(rhit.mapDataSubsystemSingleton.connectionData, connectionItem)) {
-				const connection = rhit.mapDataSubsystemSingleton.connectionData[connectionItem];
-				console.log(connection);
-			}
-		}
-	}
-};
-
-// DevMapManager allows devs to manage nodes and paths via clicks
-rhit.DevMapManager = class {
-	constructor() {
-		this._createMap();
-		this.populateMap();
-	}
-
-	_createMap() {
-		const startLat = 39.48310247510036;
-		const startLong = -87.32657158931686;
-
-		// OLD map bounds (tighter, doesn't fit all of adventure course)
-		// const bottomLeftCorner = L.latLng(39.479158569243786, -87.33267219017984);
-
-		const bottomLeftCorner = L.latLng(39.47891646288526, -87.33532970827527);
-		const topRightCorner = L.latLng(39.486971582184474, -87.31458987623805);
-		const bounds = L.latLngBounds(bottomLeftCorner, topRightCorner);
-
-		const routeMap = L.map('navigateMap', {
-			center: [startLat, startLong],
-			zoom: 20,
-			minZoom: 16,
-			maxBounds: bounds,
-			// zoomSnap: 0.25,
-			zoomSnap: 0.0,
-			zoomDelta: 0.1,
-			doubleClickZoom: false,
-			maxBoundsViscosity: 0.9,
-		}); // .setView([startLat, startLong], 13);
-
-		// expose for debugging purposes
-		window.exposedMapObj = routeMap;
-
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-		}).addTo(routeMap);
-
-		const testMarker = L.marker([startLat, startLong], {draggable: true, autoPan: true}).addTo(routeMap)
-			.bindPopup('Test popup<br> Hello.')
-			.openPopup();
-
-
-		// From https://leafletjs.com/examples/zoom-levels/example-fractional.html
-		// https://leafletjs.com/examples/zoom-levels/
-		const ZoomViewer = L.Control.extend({
-			onAdd: function() {
-				const container= L.DomUtil.create('div');
-				const gauge = L.DomUtil.create('div');
-				container.style.width = '200px';
-				container.style.background = 'rgba(255,255,255,0.5)';
-				container.style.textAlign = 'left';
-				routeMap.on('zoomstart zoom zoomend', function(ev) {
-					gauge.innerHTML = `Zoom level: ${routeMap.getZoom()}`;
-				});
-				container.appendChild(gauge);
-				return container;
-			},
-		});
-		(new ZoomViewer).addTo(routeMap);
-
-		routeMap.on('dblclick', function(event) {
 			console.log(event.latlng); // logs latlon position of where you click on the map, hopefully
 		});
+
+		return routeMap;
 	}
-	populateMap() {
-		// TODO add markers to the map
-		const nodeMap = rhit.mapDataSubsystemSingleton._fbIDToMapNode;
+	populateDevMap(routeMap) {
+		// add markers to the map
+		const nodeMap = rhit.mapDataSubsystemSingleton.nodeData;
 		for (const nodeId in nodeMap) {
 			if (Object.hasOwnProperty.call(nodeMap, nodeId)) {
 				const element = nodeMap[nodeId];
 				console.log(`${nodeId}: ${element}`);
+
+				const testMarker = L.marker([element.lat, element.lon], {draggable: true, autoPan: true}).addTo(routeMap)
+					.bindPopup(`{"title":"${element.name}", "id": "${element.fbKey}"}`);
+
+				testMarker.on('click', (event) => {
+					this.nodeClickHandler(testMarker);
+				});
 			}
 		}
+	}
+	nodeClickHandler(marker) {
+		// call this and pass in the marker object whenever a marker is clicked
+		console.log("test to grab stuff from marker's popup, on click");
+		console.log(`Current editing state: ${this.state}`);
+		const testContent = marker.getPopup().getContent();
+		console.log(testContent);
+		const testContentJSON = JSON.parse(testContent);
+		console.log(`title:${testContentJSON.title}\n id: ${testContentJSON.id}`);
 	}
 };
 
@@ -554,18 +636,18 @@ rhit.FbAuthManager = class {
 rhit.MapDataSubsystem = class {
 	constructor(shouldBuildGraph, shouldBuildNames, callbackWhenDone) {
 		this._cachedDataVersion = parseInt(localStorage.getItem(rhit.KEY_STORAGE_VERSION)) || -1; // Version is stored or blank
-		this._liveDataVersion = null;
 
 		// An object used as a map. The keys are firebase ID strings, the values are the MapNodes they correspond to.
 		this._fbIDToMapNode = {};
 		// An array used as a map. The index is the index of the vertex in the graph, the stored value is the firebase ID string.
 		this._graphIndexToFbID = [];
-		this._connections = null;
-		this._namesList = [];
+		// An object used as a map. The keys are firebase ID strings, the values are the Connection objects they correspond to.
+		this._connections = {};
+		// Object used as a map of all location names and aliases mapped to their firebase ID string
+		this._namesList = {};
 
 		this.navGraph = null;
 
-		this._documentSnapshots = [];
 		this._ref = firebase.firestore();
 		this._locationsRef = this._ref.collection(rhit.FB_COLLECTION_LOCATIONS);
 		this._connectionsRef = this._ref.collection(rhit.FB_COLLECTION_CONNECTIONS);
@@ -573,48 +655,33 @@ rhit.MapDataSubsystem = class {
 
 		this._shouldBuildGraph = shouldBuildGraph;
 		this._shouldBuildNames = shouldBuildNames;
-		// this._callback = callbackWhenDone;
 
-		// using callbacks to sort of do async await here ... probably a better way to do this...
-		// this._buildNodeData().then((liveDataVersion) => {
-		// 	this._liveDataVersion = liveDataVersion;
-		// 	console.log("MapDataSubsystem has finished prepping data");
-		// }).then(() => {
-		// 	if (shouldBuildNames) {
-		// 		console.warn("Building names TODO");
-		// 	}
-		// }).then(() => {
-		// 	if (shouldBuildGraph) {
-		// 		this._buildConnectionData().then((connectionData) => {
-		// 			this._connections = connectionData;
-		// 			this._constructGraph(connectionData);
-		// 			console.log("MapDataSubsystem done building graph");
-		// 		});
-		// 	}
-		// }).then(() => {
-		// 	this._writeCachedMapData(this._liveDataVersion);
-		// }).then(() => {
-		// 	callbackWhenDone();
-		// }).catch((error) => {
-		// 	console.error("MapDataSubsystem failed while prepping data:", error);
-		// });
 		this._prepareData(callbackWhenDone);
-
-		// this._buildRequestedData(this);
 	}
 
 	async _prepareData(finalCallback) {
 		try {
-			await this._buildNodeData();
+			console.log(`Local map data version is ${this._cachedDataVersion}`);
+			const liveDataVersion = await this._getMapLiveVersionNumber();
+
+			if (liveDataVersion > this._cachedDataVersion) {
+				console.log("Map data being fetched and rebuilt from Firebase");
+				await this._buildNodeDataFromFb();
+			} else {
+				console.log("Map data being rebuilt from local storage");
+				throw new Error("Unimplemented: map data building from local storage");
+				await this._buildNodeDataFromCache();
+			}
+
 			if (this._shouldBuildNames) {
 				console.warn("Building names TODO");
 			}
 			if (this._shouldBuildGraph) {
-				const connectionData = await this._buildConnectionData();
+				const connectionData = await this._buildConnectionDataFromFb();
 				this._connections = connectionData;
 				await this._constructGraph(connectionData);
 			}
-			await this._writeCachedMapData(this._liveDataVersion);
+			await this._writeCachedMapData(liveDataVersion);
 			console.log("Calling final MapDataSubsystem callback...");
 			await finalCallback();
 		} catch (error) {
@@ -627,17 +694,24 @@ rhit.MapDataSubsystem = class {
 	}
 
 	get nodeData() {
-		if (this._fbIDToMapNode == null) {
+		if (this._fbIDToMapNode == {}) {
 			console.error("Tried to access map nodes before they were loaded; returning null instead");
 		}
 		return this._fbIDToMapNode;
 	}
 
 	get connectionData() {
-		if (this._connections == null) {
-			console.error("Tried to access map connections before they were loaded; returning null instead");
+		if (this._connections == {}) {
+			console.error("Tried to access map connections before they were loaded; returning {} instead");
 		}
 		return this._connections;
+	}
+
+	get locationNames() {
+		if (this._namesList == {}) {
+			console.error("Tried to access names before they were loaded; returning {} instead");
+		}
+		return this._namesList;
 	}
 
 	getFbIDFromGraphVertexIndex(index) {
@@ -661,55 +735,38 @@ rhit.MapDataSubsystem = class {
 		return movabletype.haversine(node1.lat, node2.lat, node1.lon, node2.lon);
 	}
 
+	async _getMapLiveVersionNumber() {
+		const liveMapVersionRef = this._ref.collection("Constants").doc("Versions");
+		return await liveMapVersionRef.get().then((doc) => {
+			if (doc.exists) {
+				// console.log(doc.data());
+				return doc.data().map.seconds;
+			} else {
+				throw new Error("No such document - map data version");
+			}
+		});
+	}
+
 	// This method is a little funky. Ideally, it would be an async method, but the place it
 	// would need to be awaited is the constructor, which can't be async. So instead I do promise stuff.
 	// There is probably a better way to do this. -Rob
-	_buildNodeData() {
-		console.log(`Local map data version is ${this._cachedDataVersion}`);
-		const liveMapVersionRef = this._ref.collection("Constants").doc("Versions");
-
-		return new Promise((resolve, reject) => liveMapVersionRef.get().then((doc) => {
-			if (doc.exists) {
-				// console.log(doc.data());
-				const liveDataVersion = doc.data().map.seconds;
-
-				if (liveDataVersion > this._cachedDataVersion) {
-					console.log("Map data being fetched and rebuilt from Firebase");
-
-					this._locationsRef.get().then((querySnapshot) => {
-						console.log("Num nodes:", querySnapshot.size);
-
-						let index = 0;
-						querySnapshot.forEach((doc) => {
-							// doc.data() is never undefined for query doc snapshots
-							// console.log(doc.id, " => ", doc.data());
-							const thisNode = new rhit.MapNode(doc.id, doc.data(), index);
-							this._fbIDToMapNode[doc.id] = thisNode;
-							this._graphIndexToFbID.push(doc.id);
-							index++;
-
-							// Debug
-							// window[doc.id] = thisNode;
-						});
-						resolve(liveDataVersion);
-					});
-				} else {
-					console.log("Map data being rebuilt from local storage");
-					reject(new Error("Unimplemented: map data building from local storage"));
-				}
-			} else {
-				reject(new Error("No such document - map data version"));
-			}
-		}));
-		// .catch((error) => {
-		// 	console.error("error getting live data version: ", error);
-		// 	return false;
-		// });
+	async _buildNodeDataFromFb() {
+		return await this._locationsRef.get().then((querySnapshot) => {
+			console.log("Num nodes:", querySnapshot.size);
+			let index = 0;
+			querySnapshot.forEach((doc) => {
+				// doc.data() is never undefined for query doc snapshots
+				// console.log(doc.id, " => ", doc.data());
+				const thisNode = new rhit.MapNode(doc.id, doc.data(), index);
+				this._fbIDToMapNode[doc.id] = thisNode;
+				this._graphIndexToFbID.push(doc.id);
+				index++;
+			});
+		});
 	}
 
-	// TODO might change order of execution here to merge it into _constructGraph
-	_buildConnectionData() {
-		return new Promise((resolve, reject) => this._connectionsRef.get().then((querySnapshot) => {
+	async _buildConnectionDataFromFb() {
+		return await this._connectionsRef.get().then((querySnapshot) => {
 			console.log("Num connections:", querySnapshot.size);
 			const connectionData = {};
 			querySnapshot.forEach((doc) => {
@@ -721,8 +778,8 @@ rhit.MapDataSubsystem = class {
 				// Debug
 				// window[doc.id] = thisConnection;
 			});
-			resolve(connectionData);
-		}));
+			return connectionData;
+		});
 	}
 
 	_constructGraph(connectionData) {
@@ -769,13 +826,6 @@ rhit.MapDataSubsystem = class {
 		localStorage.setItem(rhit.KEY_STORAGE_NODES, JSON.stringify(this._fbIDToMapNode));
 		localStorage.setItem(rhit.KEY_STORAGE_CONNECTIONS, JSON.stringify(this._connections));
 		localStorage.setItem(rhit.KEY_STORAGE_NAMES, JSON.stringify(this._namesList));
-	}
-
-	get locationNames() {
-		if (this._namesList == null) {
-			console.error("Tried to access names before they were loaded; returning null instead");
-		}
-		return this._namesList;
 	}
 };
 
@@ -886,8 +936,6 @@ rhit.main = function () {
 		// Init page
 		rhit.initializePage();
 	});
-
-	console.log("Ready");
 };
 
 rhit.main();
