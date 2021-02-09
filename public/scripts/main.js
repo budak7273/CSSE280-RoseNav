@@ -448,10 +448,12 @@ rhit.DevMapManager = class {
 		this.state = "default";
 		this.modeIndicator = document.querySelector("#modeIndicator");
 		this.modeIndicator.innerHTML = `Editing Mode: ${this.state}`;
+		this.selectedNodeA = null;
+		this.selectedNodeB = null;
 		document.addEventListener('keydown', (event) =>{
 			// console.log(`triggering keypress listener with key ${event.key}`);
 			switch (event.key) {
-			case "Shift":
+			case "0":
 				switch (this.state) {
 				case "default":
 					this.state = "connector";
@@ -521,6 +523,10 @@ rhit.DevMapManager = class {
 		// 	.openPopup();
 
 
+		routeMap.on('dblclick', (event) => {
+			console.log(event.latlng); // logs latlon position of where you click on the map, hopefully
+			this.createNodeAtPos(event.latlng.lat, event.latlng.lng);
+		});
 		// From https://leafletjs.com/examples/zoom-levels/example-fractional.html
 		// https://leafletjs.com/examples/zoom-levels/
 		const ZoomViewer = L.Control.extend({
@@ -538,10 +544,6 @@ rhit.DevMapManager = class {
 			},
 		});
 		(new ZoomViewer).addTo(routeMap);
-
-		routeMap.on('dblclick', function(event) {
-			console.log(event.latlng); // logs latlon position of where you click on the map, hopefully
-		});
 
 		return routeMap;
 	}
@@ -570,6 +572,29 @@ rhit.DevMapManager = class {
 		console.log(testContent);
 		const testContentJSON = JSON.parse(testContent);
 		console.log(`title:${testContentJSON.title}\n id: ${testContentJSON.id}`);
+
+		switch (this.state) {
+		case "default":
+			// do nothing else in the default state
+			break;
+		case "connector":
+			// TODO: handle create connections
+			break;
+		case "disconnector":
+			// TODO: handle delete connections
+			break;
+		case "deleter":
+			// TODO: handle node delete
+			break;
+		}
+	}
+	createNodeAtPos(lat, long) {
+		const nodeName = document.querySelector("#nodeNameInput").value;
+		const nodeNumber = document.querySelector("#nodeNumber").value;
+		const nodeAliasesString = document.querySelector("#nodeAliases").value;
+		const nodeAliases = nodeAliasesString.split("\n");
+		console.log(`Trying to make node at lat: ${lat}, lon: ${long} with name = ${nodeName}, 
+						nodeNumber = ${nodeNumber}, and aliases: ${nodeAliases}`);
 	}
 };
 
