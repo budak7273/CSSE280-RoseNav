@@ -443,8 +443,8 @@ rhit.RouteManager = class {
 // DevMapManager allows devs to manage nodes and paths via clicks
 rhit.DevMapManager = class {
 	constructor() {
-		const routeMap = this._createDevMap();
-		this.populateDevMap(routeMap);
+		this.routeMap = this._createDevMap();
+		this.populateDevMap(this.routeMap);
 		this.state = "default";
 		this.modeIndicator = document.querySelector("#modeIndicator");
 		this.modeIndicator.innerHTML = `Editing Mode: ${this.state}`;
@@ -453,7 +453,7 @@ rhit.DevMapManager = class {
 		document.addEventListener('keydown', (event) =>{
 			// console.log(`triggering keypress listener with key ${event.key}`);
 			switch (event.key) {
-			case "0":
+			case "F8":
 				switch (this.state) {
 				case "default":
 					this.state = "connector";
@@ -469,18 +469,18 @@ rhit.DevMapManager = class {
 					break;
 				}
 				break;
-			case "1":
-				this.state = "default";
-				break;
-			case "2":
-				this.state = "connector";
-				break;
-			case "3":
-				this.state = "disconnector";
-				break;
-			case "4":
-				this.state = "deleter";
-				break;
+			// case "1":
+			// 	this.state = "default";
+			// 	break;
+			// case "2":
+			// 	this.state = "connector";
+			// 	break;
+			// case "3":
+			// 	this.state = "disconnector";
+			// 	break;
+			// case "4":
+			// 	this.state = "deleter";
+			// 	break;
 			default:
 				break;
 			}
@@ -564,6 +564,13 @@ rhit.DevMapManager = class {
 			}
 		}
 	}
+	spawnDevMarkerFromMapNode(mapNode, routeMap) {
+		const devMarker = L.marker([mapNode.lat, mapNode.lon], {draggable: true, autoPan: true}).addTo(routeMap)
+			.bindPopup(`{"title":"${mapNode.name}", "id": "${mapNode.fbKey}"}`);
+		devMarker.on('click', (event) => {
+			this.nodeClickHandler(devMarker);
+		});
+	}
 	nodeClickHandler(marker) {
 		// call this and pass in the marker object whenever a marker is clicked
 		console.log("test to grab stuff from marker's popup, on click");
@@ -593,8 +600,29 @@ rhit.DevMapManager = class {
 		const nodeNumber = document.querySelector("#nodeNumber").value;
 		const nodeAliasesString = document.querySelector("#nodeAliases").value;
 		const nodeAliases = nodeAliasesString.split("\n");
-		console.log(`Trying to make node at lat: ${lat}, lon: ${long} with name = ${nodeName}, 
-						nodeNumber = ${nodeNumber}, and aliases: ${nodeAliases}`);
+		let newNodeName = nodeName;
+		if (parseInt(nodeNumber) >= 0) {
+			newNodeName = `${nodeName}-${nodeNumber}`; // append nodeNumber to the name if it is a series
+			document.querySelector("#nodeNumber").value = parseInt(nodeNumber) + 1;
+		}
+		console.log(`Trying to make node at lat: ${lat}, lon: ${long} with name = ${newNodeName}, and aliases: ${nodeAliases}`);
+
+		// first create a firebase document so that we can use it's ID
+		rhit.mapDataSubsystemSingleton._locationsRef.add({
+			[rhit.FB_KEY_LOC_GEO]: new firebase.firestore.GeoPoint(lat, long),
+			[rhit.FB_KEY_LOC_NAME]: newNodeName,
+			[rhit.FB_KEY_LOC_ALIAS]: nodeAliases,
+		})
+			.then( (docRef) => {
+				const newMapNode = new rhit.MapNode(docRef, {[rhit.FB_KEY_LOC_GEO]: new firebase.firestore.GeoPoint(lat, long),
+					[rhit.FB_KEY_LOC_NAME]: newNodeName,
+					[rhit.FB_KEY_LOC_ALIAS]: nodeAliases}, -1);
+				rhit.mapDataSubsystemSingleton.nodeData[docRef] = newMapNode;
+				this.spawnDevMarkerFromMapNode(newMapNode, this.routeMap);
+			})
+			.catch(function (error) {
+				console.error("Error adding document: ", error);
+			});
 	}
 };
 
