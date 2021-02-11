@@ -10,6 +10,8 @@ body {
 .navbar {
 	background-color: var(--rosered);
 	color: white;
+	/* Enough z-index to draw over the Leaflet map */
+	z-index: 9001;
 }
 
 .page-container {
