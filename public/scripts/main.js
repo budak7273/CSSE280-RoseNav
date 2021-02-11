@@ -470,13 +470,16 @@ rhit.DevMapManager = class {
 	constructor() {
 		this.fbKeyMarkerMap = {};
 		this.icons = this.makeIcons();
+		this.lastClickedMarkerElement = null;
+		this.selectedMarkerElement = null;
+
 		this.routeMap = this._createDevMap();
 		this.populateDevMap(this.routeMap);
 		this.state = "default";
 		this.modeIndicator = document.querySelector("#modeIndicator");
 		this.modeIndicator.innerHTML = `Editing Mode: ${this.state}`;
-		this.selectedNodeA = null;
-		this.selectedNodeB = null;
+		this.selectedNodeAFbId = null;
+		this.selectedNodeBFbId = null;
 		document.addEventListener('keydown', (event) =>{
 			// console.log(`triggering keypress listener with key ${event.key}`);
 			switch (event.key) {
@@ -602,7 +605,21 @@ rhit.DevMapManager = class {
 			`<br/>name:${mapNode.name}`+
 			`<br/>searchable?:${mapNode.searchable}`+
 			// `<br/>i:${mapNode.vertexIndex}` +
+			`<br/><button onclick="rhit.devMapManagerSingleton._selectMarker('${mapNode.fbKey}')">Select me</button>` +
 			`<br/><button onclick="rhit.devMapManagerSingleton._updateFromMarker('${mapNode.fbKey}')">Update pos</button>`;
+	}
+
+	_selectMarker(fbKey) {
+		if (this.selectedMarkerElement) {
+			// Revert color of old selection if it exists
+			this.selectedMarkerElement.classList.toggle("marker-dev-selected-1");
+		}
+		// Replace with new
+		this.selectedMarkerElement = this.lastClickedMarkerElement;
+		this.selectedNodeAFbId = fbKey;
+		// Color new
+		this.selectedMarkerElement.classList.toggle("marker-dev-selected-1");
+		console.log("Now selected:", fbKey);
 	}
 
 	_updateFromMarker(fbKey) {
@@ -629,6 +646,10 @@ rhit.DevMapManager = class {
 			.bindPopup(this._mapNodePopupHTML(mapNode));
 		devMarker.on('click', (event) => {
 			this.nodeClickHandler(devMarker);
+
+			// Selection logic and coloring
+			const htmlElement = event.originalEvent.target;
+			this.lastClickedMarkerElement = htmlElement;
 		});
 		this.fbKeyMarkerMap[mapNode.fbKey] = devMarker;
 	}
@@ -1108,7 +1129,7 @@ rhit.initializePage = function () {
 
 		if (!(rhit.fbAuthManagerSingleton.isSignedIn && authorizedUsers[rhit.fbAuthManagerSingleton.uid])) {
 			window.alert("INVALID USER DETECTED");
-			// window.location.href = "/";
+			window.location.href = "/";
 		}
 		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(true, true, () => {
 			rhit.devMapManagerSingleton = new rhit.DevMapManager();

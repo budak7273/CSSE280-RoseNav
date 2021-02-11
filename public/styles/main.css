@@ -130,6 +130,14 @@ body {
 	padding-right: 5px;
 }
 
+.marker-dev-selected-1 {
+	filter: hue-rotate(90deg);
+}
+
+.marker-dev-selected-2 {
+	filter: hue-rotate(-0.25turn);
+}
+
  /* Small devices (landscape phones, 576px and up) */
 @media (min-width: 576px) {
 
