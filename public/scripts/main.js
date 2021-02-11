@@ -13,7 +13,7 @@ var movabletype = movabletype || {};
 /* eslint-enable no-var */
 
 // eslint-disable-next-line max-len
-rhit.supportedLocations = ["Mussallem Union", "Lakeside Hall", "Percopo Hall", "Apartments East", "Apartments West", "Blumberg Hall", "Scharpenberg Hall", "Mees Hall", "BSB Hall", "Speed Hall", "Deming Hall", "O259", "O269", "O267", "O257"];
+// rhit.supportedLocations = ["Mussallem Union", "Lakeside Hall", "Percopo Hall", "Apartments East", "Apartments West", "Blumberg Hall", "Scharpenberg Hall", "Mees Hall", "BSB Hall", "Speed Hall", "Deming Hall", "O259", "O269", "O267", "O257"];
 
 // Singletons
 rhit.fbAuthManagerSingleton = null;
@@ -29,6 +29,7 @@ rhit.FB_COLLECTION_CONNECTIONS = "Connections";
 rhit.FB_KEY_LOC_GEO = "location";
 rhit.FB_KEY_LOC_NAME = "name";
 rhit.FB_KEY_LOC_ALIAS = "name-aliases";
+rhit.FB_KEY_LOC_SEARCHABLE = "searchable?";
 
 // This might be able to be replaced with Cloud Firestore offline data access
 // https://firebase.google.com/docs/firestore/manage-data/enable-offline
@@ -39,7 +40,7 @@ rhit.KEY_STORAGE_CONNECTIONS = "local-data-connections";
 
 
 // adapted from https://www.w3schools.com/howto/howto_js_autocomplete.asp
-w3schools.autocomplete = function (inp, arr) {
+w3schools.autocomplete = function (inp, arr, callOnAcceptAutocompleteItem) {
 	/* the autocomplete function takes two arguments,
 	the text field element and an array of possible autocompleted values:*/
 	let currentFocus;
@@ -93,6 +94,9 @@ w3schools.autocomplete = function (inp, arr) {
 					/* close the list of autocompleted values,
 					(or any other open lists of autocompleted values:*/
 					closeAllLists();
+					if (callOnAcceptAutocompleteItem) {
+						callOnAcceptAutocompleteItem();
+					}
 				});
 				a.appendChild(b);
 				numResults++;
@@ -175,12 +179,6 @@ movabletype.haversine = function(lat1, lat2, lon1, lon2) {
 // HomeController controls the home page, including displaying search autocomplete and route redirects
 rhit.HomeController = class {
 	constructor() {
-		const startInput = document.querySelector("#startInput");
-		const destInput = document.querySelector("#destInput");
-
-		w3schools.autocomplete(startInput, rhit.supportedLocations);
-		w3schools.autocomplete(destInput, rhit.supportedLocations);
-
 		// https://atomiks.github.io/tippyjs/v6/getting-started/
 		this._startInvalidTooltip = tippy(startInput, {content: 'Invalid start location', trigger: 'manual'});
 		this._destInvalidTooltip = tippy(destInput, {content: 'Invalid destination', trigger: 'manual'});
@@ -214,14 +212,10 @@ rhit.HomeController = class {
 		}
 
 		document.querySelector("#submitLocation").addEventListener("click", (event) => {
-			const currentStart = document.querySelector("#startInput").value;
-			const currentDest = document.querySelector("#destInput").value;
-			console.log(`Planning route from ${currentStart} to ${currentDest}`);
-
-			const success = rhit.homeManagerSingleton.validateSearchEntries();
-			if (success) {
-				window.location.href = `./route.html?start=${currentStart}&dest=${currentDest}`;
-			}
+			const wasUserClick = event.isTrusted;
+			// Navigates on successful validate
+			// Only brings up popups if it's a user click on the button and not js-caused
+			rhit.homeManagerSingleton.validateSearchEntries(wasUserClick, true);
 		});
 
 		// Run route search on press enter in dest box
@@ -265,27 +259,49 @@ rhit.HomeManager = class {
 
 	}
 
-	validateSearchEntries() {
+	setupSearchBoxes(validLocationsArray) {
 		const startInput = document.querySelector("#startInput");
 		const destInput = document.querySelector("#destInput");
 
-		const isValidStart = rhit.supportedLocations.includes(startInput.value);
-		const isValidEnd = rhit.supportedLocations.includes(destInput.value);
+		const goIfBothFilledOut = function() {
+			$("#submitLocation").click();
+		};
 
-		if (isValidStart && isValidEnd) {
+		w3schools.autocomplete(startInput, validLocationsArray, goIfBothFilledOut);
+		w3schools.autocomplete(destInput, validLocationsArray, goIfBothFilledOut);
+
+		document.querySelector("#navigateLoadingBox").style.display = "none";
+		document.querySelector("#navigateSearchBoxes").style.display = "block";
+	}
+
+	getFbIdFromName(name) {
+		return rhit.mapDataSubsystemSingleton.getLocationFbIdFromNameOrAlias(name);
+	}
+
+	validateSearchEntries(showTipperOnFail, goOnSuccess) {
+		const startInput = document.querySelector("#startInput");
+		const destInput = document.querySelector("#destInput");
+
+		const startFbId = this.getFbIdFromName(startInput.value);
+		const endFbId = this.getFbIdFromName(destInput.value);
+
+		if (startFbId && endFbId) {
+			if (goOnSuccess) {
+				window.location.href = `./route.html?start=${startFbId}&dest=${endFbId}`;
+			}
 			return true;
-		} else {
+		} else if (showTipperOnFail) {
 			const startTipper = startInput._tippy;
 			const destTipper = destInput._tippy;
 
-			if (!isValidStart) {
+			if (!startFbId) {
 				startTipper.show();
 			}
-			if (!isValidEnd) {
+			if (!endFbId) {
 				destTipper.show();
 			}
-			return false;
 		}
+		return false;
 	}
 };
 
@@ -294,10 +310,6 @@ rhit.RouteController = class {
 	constructor(startPoint, destPoint) {
 		this._startPoint = startPoint;
 		this._destPoint = destPoint;
-
-		document.querySelector("#directionsItem").innerHTML = `${startPoint} to ${destPoint}`;
-
-		// rhit.routeManagerSingleton.beginListening(this.updateView.bind(this)); // TODO remove
 	}
 
 	updateView() {
@@ -307,21 +319,34 @@ rhit.RouteController = class {
 
 // RouteManager draws the map and manages the routing
 rhit.RouteManager = class {
-	constructor(startPoint, destPoint) {
-		this._startPoint = startPoint;
-		this._destPoint = destPoint;
+	constructor(startPointFbId, destPointFbId) {
+		this._startPointFbId = startPointFbId;
+		this._destPointFbId = destPointFbId;
 		this._routeMap = null;
 		this._markerLayer = L.layerGroup([]);
 		this._connectionLayer = L.layerGroup([]);
 
-		const isValidStart = rhit.supportedLocations.includes(startPoint);
-		const isValidEnd = rhit.supportedLocations.includes(destPoint);
-		if (!isValidStart || !isValidEnd) {
-			console.error("One of the destinations entered was not in the supported locations list");
-			// TODO: notify and redirect users back to route creation page instead of proceeding with routing
-		}
-
 		this._createMap();
+	}
+
+	validateURLParamPoints() {
+		const startFbId = rhit.mapDataSubsystemSingleton.validateLocationFbId(this._startPointFbId);
+		const endFbId = rhit.mapDataSubsystemSingleton.validateLocationFbId(this._destPointFbId);
+
+		if (!startFbId || !endFbId) {
+			console.error("One of the destination IDs entered was not in the supported locations list. start,end:", startFbId, endFbId);
+			alert("You have followed a broken map link. Sending you back to the home page.");
+			window.location.href = "/";
+			return false;
+		}
+		return true;
+	}
+
+	setDirectionsHeading() {
+		// possibly detach this from map nodes later?
+		const startName = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(this._startPointFbId).name;
+		const destName = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(this._destPointFbId).name;
+		document.querySelector("#directionsItem").innerHTML = `${startName} to ${destName}`;
 	}
 
 	_createMap() {
@@ -553,7 +578,7 @@ rhit.DevMapManager = class {
 		for (const nodeId in nodeMap) {
 			if (Object.hasOwnProperty.call(nodeMap, nodeId)) {
 				const element = nodeMap[nodeId];
-				console.log(`${nodeId}: ${element}`);
+				console.log(`${nodeId}:`, element);
 
 				const testMarker = L.marker([element.lat, element.lon], {draggable: true, autoPan: true}).addTo(routeMap)
 					.bindPopup(`{"title":"${element.name}", "id": "${element.fbKey}"}`);
@@ -585,13 +610,13 @@ rhit.DevMapManager = class {
 			// do nothing else in the default state
 			break;
 		case "connector":
-			// TODO: handle create connections
+			// handle create connections
 			break;
 		case "disconnector":
-			// TODO: handle delete connections
+			// handle delete connections
 			break;
 		case "deleter":
-			// TODO: handle node delete
+			// handle node delete
 			break;
 		}
 	}
@@ -599,7 +624,9 @@ rhit.DevMapManager = class {
 		const nodeName = document.querySelector("#nodeNameInput").value;
 		const nodeNumber = document.querySelector("#nodeNumber").value;
 		const nodeAliasesString = document.querySelector("#nodeAliases").value;
+		const nodeSearchable = document.querySelector("#nodeSearchable").checked;
 		const nodeAliases = nodeAliasesString.split("\n");
+
 		let newNodeName = nodeName;
 		if (parseInt(nodeNumber) >= 0) {
 			newNodeName = `${nodeName}-${nodeNumber}`; // append nodeNumber to the name if it is a series
@@ -611,14 +638,19 @@ rhit.DevMapManager = class {
 		rhit.mapDataSubsystemSingleton._locationsRef.add({
 			[rhit.FB_KEY_LOC_GEO]: new firebase.firestore.GeoPoint(lat, long),
 			[rhit.FB_KEY_LOC_NAME]: newNodeName,
-			[rhit.FB_KEY_LOC_ALIAS]: nodeAliases,
+			[rhit.FB_KEY_LOC_ALIAS]: nodeAliases.length > 0 ? nodeAliases : null,
+			[rhit.FB_KEY_LOC_SEARCHABLE]: nodeSearchable,
 		})
 			.then( (docRef) => {
-				const newMapNode = new rhit.MapNode(docRef, {[rhit.FB_KEY_LOC_GEO]: new firebase.firestore.GeoPoint(lat, long),
-					[rhit.FB_KEY_LOC_NAME]: newNodeName,
-					[rhit.FB_KEY_LOC_ALIAS]: nodeAliases}, -1);
-				rhit.mapDataSubsystemSingleton.nodeData[docRef] = newMapNode;
-				this.spawnDevMarkerFromMapNode(newMapNode, this.routeMap);
+				console.log("Got doc ref", docRef);
+				docRef.get().then((snapshot) => {
+					console.log("Got snapshot", snapshot);
+					const data = snapshot.data();
+
+					const newMapNode = new rhit.MapNode(docRef.id, data, -1);
+					rhit.mapDataSubsystemSingleton.nodeData[docRef] = newMapNode;
+					this.spawnDevMarkerFromMapNode(newMapNode, this.routeMap);
+				});
 			})
 			.catch(function (error) {
 				console.error("Error adding document: ", error);
@@ -715,7 +747,7 @@ rhit.MapDataSubsystem = class {
 		// An object used as a map. The keys are firebase ID strings, the values are the Connection objects they correspond to.
 		this._connections = {};
 		// Object used as a map of all location names and aliases mapped to their firebase ID string
-		this._namesList = {};
+		this._namesAndAliasToFbId = {};
 
 		this.navGraph = null;
 
@@ -745,7 +777,8 @@ rhit.MapDataSubsystem = class {
 			}
 
 			if (this._shouldBuildNames) {
-				console.warn("Building names TODO");
+				// console.warn("Building names TODO");
+				await this._buildNamesFromMapNodes();
 			}
 			if (this._shouldBuildGraph) {
 				const connectionData = await this._buildConnectionDataFromFb();
@@ -778,11 +811,11 @@ rhit.MapDataSubsystem = class {
 		return this._connections;
 	}
 
-	get locationNames() {
-		if (this._namesList == {}) {
+	get namesToFbId() {
+		if (this._namesAndAliasToFbId == {}) {
 			console.error("Tried to access names before they were loaded; returning {} instead");
 		}
-		return this._namesList;
+		return this._namesAndAliasToFbId;
 	}
 
 	getFbIDFromGraphVertexIndex(index) {
@@ -806,6 +839,16 @@ rhit.MapDataSubsystem = class {
 		return movabletype.haversine(node1.lat, node2.lat, node1.lon, node2.lon);
 	}
 
+	getLocationFbIdFromNameOrAlias(locationNameOrAlias) {
+		// console.log("Validating name", locationNameOrAlias);
+		return this.namesToFbId[locationNameOrAlias];
+	}
+
+	validateLocationFbId(locationFbId) {
+		// console.log("Validating fbid", locationFbId);
+		return Object.values(this.namesToFbId).includes(locationFbId);
+	}
+
 	async _getMapLiveVersionNumber() {
 		const liveMapVersionRef = this._ref.collection("Constants").doc("Versions");
 		return await liveMapVersionRef.get().then((doc) => {
@@ -818,9 +861,6 @@ rhit.MapDataSubsystem = class {
 		});
 	}
 
-	// This method is a little funky. Ideally, it would be an async method, but the place it
-	// would need to be awaited is the constructor, which can't be async. So instead I do promise stuff.
-	// There is probably a better way to do this. -Rob
 	async _buildNodeDataFromFb() {
 		return await this._locationsRef.get().then((querySnapshot) => {
 			console.log("Num nodes:", querySnapshot.size);
@@ -896,7 +936,36 @@ rhit.MapDataSubsystem = class {
 		// localStorage.setItem(rhit.KEY_STORAGE_VERSION, versionEpochTime);
 		localStorage.setItem(rhit.KEY_STORAGE_NODES, JSON.stringify(this._fbIDToMapNode));
 		localStorage.setItem(rhit.KEY_STORAGE_CONNECTIONS, JSON.stringify(this._connections));
-		localStorage.setItem(rhit.KEY_STORAGE_NAMES, JSON.stringify(this._namesList));
+		localStorage.setItem(rhit.KEY_STORAGE_NAMES, JSON.stringify(this._namesAndAliasToFbId));
+	}
+
+	_buildNamesFromMapNodes() {
+		const mapNodeValidNameToFbId = {};
+
+		// For every map node...
+		for (const fbId in this._fbIDToMapNode) {
+			if (Object.hasOwnProperty.call(this._fbIDToMapNode, fbId)) {
+				const mapNode = this._fbIDToMapNode[fbId];
+				// Make an array with its alias names and its name
+				const nodeNames = [...mapNode.aliasList, mapNode.name];
+				nodeNames.forEach((possibleName) => {
+					// Check if 1. the node is meant to be searchable 2. it's non-null 3. non-empty
+					if (mapNode.searchable && possibleName && possibleName.trim().length > 0) {
+						// Skip and warn if the name was already added by something else
+						if (mapNodeValidNameToFbId[possibleName]) {
+							console.warn(`MapNode ${fbId} tried to add name ${possibleName},` +
+								` but it was already defined by map node ${mapNodeValidNameToFbId[possibleName]}`);
+						} else {
+							// Add the name mapping
+							mapNodeValidNameToFbId[possibleName] = fbId;
+						}
+					}
+				});
+			}
+		}
+		this._namesAndAliasToFbId = mapNodeValidNameToFbId;
+
+		console.log(mapNodeValidNameToFbId);
 	}
 };
 
@@ -910,9 +979,18 @@ rhit.MapNode = class {
 	constructor (fbKey, fbLocationDocumentData, vertexIndex) {
 		this.fbKey = fbKey;
 		this.geopoint = fbLocationDocumentData[rhit.FB_KEY_LOC_GEO];
-		this.name = fbLocationDocumentData[rhit.FB_KEY_LOC_NAME] || `Unnamed node ${fbKey}`;
 		this.aliasList = fbLocationDocumentData[rhit.FB_KEY_LOC_ALIAS] || [];
 		this.vertexIndex = vertexIndex;
+
+		// if a node has a name, then set its searchability based on the data.
+		// otherwise, give it a placeholder name and never let it be searchable
+		this.name = fbLocationDocumentData[rhit.FB_KEY_LOC_NAME];
+		if (this.name) {
+			this.searchable = fbLocationDocumentData[rhit.FB_KEY_LOC_SEARCHABLE] || false;
+		} else {
+			this.name = `Unnamed node ${fbKey}`;
+			this.searchable = false;
+		}
 	}
 
 	validAlias(name) {
@@ -959,6 +1037,8 @@ rhit.initializePage = function () {
 		// Needs map data for place search
 		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(false, true, () => {
 			console.log("Home page map system callback");
+			const validPlaces = Object.keys(rhit.mapDataSubsystemSingleton.namesToFbId);
+			rhit.homeManagerSingleton.setupSearchBoxes(validPlaces);
 		});
 		rhit.homeManagerSingleton = new this.HomeManager();
 		new rhit.HomeController();
@@ -973,7 +1053,9 @@ rhit.initializePage = function () {
 		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(true, true, () => {
 			console.log("Map data system done loading callback");
 			// This will be called after routeManagerSingleton exists
+			rhit.routeManagerSingleton.validateURLParamPoints();
 			rhit.routeManagerSingleton.populateMap();
+			rhit.routeManagerSingleton.setDirectionsHeading();
 		});
 		rhit.routeManagerSingleton = new rhit.RouteManager(startPoint, destPoint);
 		new rhit.RouteController(startPoint, destPoint);
@@ -988,7 +1070,7 @@ rhit.initializePage = function () {
 
 		if (!(rhit.fbAuthManagerSingleton.isSignedIn && authorizedUsers[rhit.fbAuthManagerSingleton.uid])) {
 			window.alert("INVALID USER DETECTED");
-			window.location.href = "/";
+			// window.location.href = "/";
 		}
 		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(true, true, () => {
 			rhit.devMapManagerSingleton = new rhit.DevMapManager();
