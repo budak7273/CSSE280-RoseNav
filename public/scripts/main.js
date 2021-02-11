@@ -468,6 +468,8 @@ rhit.RouteManager = class {
 // DevMapManager allows devs to manage nodes and paths via clicks
 rhit.DevMapManager = class {
 	constructor() {
+		this.fbKeyMarkerMap = {};
+		this.icons = this.makeIcons();
 		this.routeMap = this._createDevMap();
 		this.populateDevMap(this.routeMap);
 		this.state = "default";
@@ -494,18 +496,6 @@ rhit.DevMapManager = class {
 					break;
 				}
 				break;
-			// case "1":
-			// 	this.state = "default";
-			// 	break;
-			// case "2":
-			// 	this.state = "connector";
-			// 	break;
-			// case "3":
-			// 	this.state = "disconnector";
-			// 	break;
-			// case "4":
-			// 	this.state = "deleter";
-			// 	break;
 			default:
 				break;
 			}
@@ -572,38 +562,86 @@ rhit.DevMapManager = class {
 
 		return routeMap;
 	}
+
+	makeIcons() {
+		const makeIcon = (iconFileName) => {
+			const iconOptions = L.Icon.Default.prototype.options;
+			// iconOptions.iconUrl = "";
+			const CustomIcon = L.Icon.extend({
+				options: iconOptions,
+			});
+			const imgUrl = `/image/map/${iconFileName}.png`;
+			return new CustomIcon({
+				iconUrl: imgUrl,
+				iconRetinaUrl: imgUrl,
+				shadowUrl: `/image/map/marker-shadow.png`,
+			});
+		};
+
+		return {
+			green: makeIcon("green-pin"),
+			blue: makeIcon("blue-pin"),
+			orange: makeIcon("orange-pin"),
+			red: makeIcon("red-pin"),
+			small: makeIcon("small-pin"),
+		};
+	}
+
 	populateDevMap(routeMap) {
 		// add markers to the map
 		const nodeMap = rhit.mapDataSubsystemSingleton.nodeData;
 		for (const nodeId in nodeMap) {
 			if (Object.hasOwnProperty.call(nodeMap, nodeId)) {
-				const element = nodeMap[nodeId];
-				console.log(`${nodeId}:`, element);
-
-				const testMarker = L.marker([element.lat, element.lon], {draggable: true, autoPan: true}).addTo(routeMap)
-					.bindPopup(`{"title":"${element.name}", "id": "${element.fbKey}"}`);
-
-				testMarker.on('click', (event) => {
-					this.nodeClickHandler(testMarker);
-				});
+				const mapNode = nodeMap[nodeId];
+				this.spawnDevMarkerFromMapNode(mapNode, routeMap);
 			}
 		}
 	}
+	_mapNodePopupHTML(mapNode) {
+		return `id:<span class="code">${mapNode.fbKey}</span>` +
+			`<br/>name:${mapNode.name}`+
+			`<br/>searchable?:${mapNode.searchable}`+
+			// `<br/>i:${mapNode.vertexIndex}` +
+			`<br/><button onclick="rhit.devMapManagerSingleton._updateFromMarker('${mapNode.fbKey}')">Update pos</button>`;
+	}
+
+	_updateFromMarker(fbKey) {
+		console.log("Update", fbKey);
+		const marker = this.fbKeyMarkerMap[fbKey];
+		console.log("Marker is ", marker);
+		const latlng = marker._latlng;
+		rhit.mapDataSubsystemSingleton._locationsRef.doc(fbKey).update({
+			location: new firebase.firestore.GeoPoint(latlng.lat, latlng.lng),
+		}).then(() => {
+			console.log("Successfully moved", fbKey);
+		}).catch((err) => {
+			console.error(err);
+		});
+	}
+
 	spawnDevMarkerFromMapNode(mapNode, routeMap) {
-		const devMarker = L.marker([mapNode.lat, mapNode.lon], {draggable: true, autoPan: true}).addTo(routeMap)
-			.bindPopup(`{"title":"${mapNode.name}", "id": "${mapNode.fbKey}"}`);
+		const devMarker = L.marker([mapNode.lat, mapNode.lon],
+			{
+				draggable: true,
+				autoPan: true,
+				icon: mapNode.searchable ? this.icons.blue : this.icons.small,
+			}).addTo(routeMap)
+			.bindPopup(this._mapNodePopupHTML(mapNode));
 		devMarker.on('click', (event) => {
 			this.nodeClickHandler(devMarker);
 		});
+		this.fbKeyMarkerMap[mapNode.fbKey] = devMarker;
 	}
+
 	nodeClickHandler(marker) {
 		// call this and pass in the marker object whenever a marker is clicked
-		console.log("test to grab stuff from marker's popup, on click");
+		// console.log("test to grab stuff from marker's popup, on click");
 		console.log(`Current editing state: ${this.state}`);
-		const testContent = marker.getPopup().getContent();
-		console.log(testContent);
-		const testContentJSON = JSON.parse(testContent);
-		console.log(`title:${testContentJSON.title}\n id: ${testContentJSON.id}`);
+		const popup = marker.getPopup();
+		const testContent = popup.getContent();
+		// console.log(testContent);
+		// const testContentJSON = JSON.parse(testContent);
+		// console.log(`title:${testContentJSON.title}\n id: ${testContentJSON.id}`);
 
 		switch (this.state) {
 		case "default":
