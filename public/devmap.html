@@ -28,20 +28,27 @@
 		<div id="navigateMap"></div>
 		<h5 id="modeIndicator"></h5>
 
-		<div class="col justify-content-center">
-			<div class="row justify-content-center">
-				<input type="text" id="nodeNameInput">
+		<div class="col justify-content-center" style="background-color: whitesmoke;">
+			<!-- Nab more from https://mdbootstrap.github.io/bootstrap-material-design/docs/4.0/material-design/forms/ -->
+			<h3>Node Creation (double click)</h3>
+			<div class="form-group bmd-form-group">
+				<label for="nodeNameInput" class="bmd-label-floating">Node Name</label>
+				<input type="text" class="form-control" id="nodeNameInput">
 			</div>
-			<div class="row justify-content-center">
-				<input type="number" id="nodeNumber">
+			<div class="form-group bmd-form-group">
+				<label for="nodeNumber" class="bmd-label-floating">Node Series Number (blank for not series)</label>
+				<input type="number" class="form-control" id="nodeNumber">
 			</div>
-			<div class="row justify-content-center">
-				<textarea type="text" id="nodeAliases"></textarea>
+			<div class="form-group bmd-form-group">
+				<label for="nodeAliases" class="bmd-label-floating">CSV name alias list</label>
+				<input type="text" class="form-control" id="nodeAliases">
+			</div>
+			<div class="checkbox">
+				<label for="nodeSearchable">
+				  <input type="checkbox" id="nodeSearchable"> Searchable (false for hidden)
+				</label>
 			</div>
 		</div>
-		
-		
-
 	</div>
 
 <!-- =================================================================================================== -->
