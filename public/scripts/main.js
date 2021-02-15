@@ -30,6 +30,10 @@ rhit.FB_KEY_LOC_GEO = "location";
 rhit.FB_KEY_LOC_NAME = "name";
 rhit.FB_KEY_LOC_ALIAS = "name-aliases";
 rhit.FB_KEY_LOC_SEARCHABLE = "searchable?";
+rhit.FB_KEY_CON_NAME = "name";
+rhit.FB_KEY_CON_PLACE1 = "place1";
+rhit.FB_KEY_CON_PLACE2 = "place2";
+rhit.FB_KEY_CON_STAIRCASE = "staircase?";
 
 // This might be able to be replaced with Cloud Firestore offline data access
 // https://firebase.google.com/docs/firestore/manage-data/enable-offline
@@ -174,6 +178,30 @@ movabletype.haversine = function(lat1, lat2, lon1, lon2) {
 	const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
 	return R * c; // in metres
+};
+
+rhit.makeIcons = function() {
+	const makeIcon = (iconFileName) => {
+		const iconOptions = L.Icon.Default.prototype.options;
+		// iconOptions.iconUrl = "";
+		const CustomIcon = L.Icon.extend({
+			options: iconOptions,
+		});
+		const imgUrl = `/image/map/${iconFileName}.png`;
+		return new CustomIcon({
+			iconUrl: imgUrl,
+			iconRetinaUrl: imgUrl,
+			shadowUrl: `/image/map/marker-shadow.png`,
+		});
+	};
+
+	return {
+		green: makeIcon("green-pin"),
+		blue: makeIcon("blue-pin"),
+		orange: makeIcon("orange-pin"),
+		red: makeIcon("red-pin"),
+		small: makeIcon("small-pin"),
+	};
 };
 
 // HomeController controls the home page, including displaying search autocomplete and route redirects
@@ -349,6 +377,15 @@ rhit.RouteManager = class {
 		document.querySelector("#directionsItem").innerHTML = `${startName} to ${destName}`;
 	}
 
+	navAndDrawPath() {
+		const path = rhit.mapDataSubsystemSingleton._dijkstraBetweenFbKeys(this._startPointFbId, this._destPointFbId);
+		for (let i = 0; i < path.length; ++i) {
+			const e = path[i];
+			console.log(`${e.from()} => ${e.to()}: ${e.weight}`);
+			this.drawMapLineFromGraphVertices(e.from(), e.to(), this._connectionLayer, "red");
+		}
+	}
+
 	_createMap() {
 		const startLat = 39.48310247510036;
 		const startLong = -87.32657158931686;
@@ -430,21 +467,36 @@ rhit.RouteManager = class {
 		this._routeMap = routeMap;
 	}
 
-	spawnMarkerFromMapNode(mapNode, map) {
+	spawnMarkerFromMapNode(mapNode, layer) {
 		// console.log(mapNode);
-		return L.marker([mapNode.lat, mapNode.lon], {/* draggable: true, */autoPan: true})
+		return L.marker([mapNode.lat, mapNode.lon],
+			{
+				/* draggable: true, */
+				autoPan: true,
+				icon: mapNode.searchable ? rhit.icons.blue : rhit.icons.small,
+			})
 			.bindPopup(`id:<span class="code">${mapNode.fbKey}</span><br/>n:${mapNode.name}<br/>i:${mapNode.vertexIndex}`)
-			.addTo(this._markerLayer);
+			.addTo(layer);
 	}
 
-	drawMapLineFromConnection(connection, map) {
-		const place1 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place1FbID);
-		const place2 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place2FbID);
-		L.polyline([[place1.lat, place1.lon], [place2.lat, place2.lon]], {
-			color: "red",
+	drawMapLineFromMapNodes(node1, node2, layer, colorString) {
+		L.polyline([[node1.lat, node1.lon], [node2.lat, node2.lon]], {
+			color: colorString,
 			pane: "shadowPane",
 		})
-			.addTo(this._connectionLayer);
+			.addTo(layer);
+	}
+
+	drawMapLineFromGraphVertices(vert1, vert2, layer, colorString) {
+		const node1 = rhit.mapDataSubsystemSingleton.getMapNodeFromGraphVertexIndex(vert1);
+		const node2 = rhit.mapDataSubsystemSingleton.getMapNodeFromGraphVertexIndex(vert2);
+		this.drawMapLineFromMapNodes(node1, node2, layer, colorString);
+	}
+
+	drawMapLineFromConnection(connection, layer, colorString) {
+		const place1 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place1FbID);
+		const place2 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place2FbID);
+		this.drawMapLineFromMapNodes(place1, place2, layer, colorString);
 	}
 
 	populateMap() {
@@ -452,13 +504,13 @@ rhit.RouteManager = class {
 		for (const mapNodeItem in rhit.mapDataSubsystemSingleton.nodeData) {
 			if (Object.hasOwnProperty.call(rhit.mapDataSubsystemSingleton.nodeData, mapNodeItem)) {
 				const mapNode = rhit.mapDataSubsystemSingleton.nodeData[mapNodeItem];
-				this.spawnMarkerFromMapNode(mapNode, this._routeMap);
+				this.spawnMarkerFromMapNode(mapNode, this._markerLayer);
 			}
 		}
 		for (const connectionItem in rhit.mapDataSubsystemSingleton.connectionData) {
 			if (Object.hasOwnProperty.call(rhit.mapDataSubsystemSingleton.connectionData, connectionItem)) {
 				const connection = rhit.mapDataSubsystemSingleton.connectionData[connectionItem];
-				this.drawMapLineFromConnection(connection, this._routeMap);
+				this.drawMapLineFromConnection(connection, this._connectionLayer, "gray");
 			}
 		}
 	}
@@ -469,12 +521,15 @@ rhit.RouteManager = class {
 rhit.DevMapManager = class {
 	constructor() {
 		this.fbKeyMarkerMap = {};
-		this.icons = this.makeIcons();
 		this.lastClickedMarkerElement = null;
 		this.selectedMarkerElement = null;
+		this.selectedMarkerFbKey = null;
+		this._routeMap = null;
 
-		this.routeMap = this._createDevMap();
-		this.populateDevMap(this.routeMap);
+		this._markerLayer = L.layerGroup([]);
+		this._connectionLayer = L.layerGroup([]);
+		this._createDevMap();
+
 		this.state = "default";
 		this.modeIndicator = document.querySelector("#modeIndicator");
 		this.modeIndicator.innerHTML = `Editing Mode: ${this.state}`;
@@ -483,7 +538,7 @@ rhit.DevMapManager = class {
 		document.addEventListener('keydown', (event) =>{
 			// console.log(`triggering keypress listener with key ${event.key}`);
 			switch (event.key) {
-			case "F8":
+			case "Control":
 				switch (this.state) {
 				case "default":
 					this.state = "connector";
@@ -517,6 +572,28 @@ rhit.DevMapManager = class {
 		const topRightCorner = L.latLng(39.486971582184474, -87.31458987623805);
 		const bounds = L.latLngBounds(bottomLeftCorner, topRightCorner);
 
+		// Layer setup
+
+		/* eslint-disable max-len */
+		const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+		});
+		// I signed up for an account (budak7273) so we're allowed to use this since we follow their attribution rules
+		// https://github.com/leaflet-extras/leaflet-providers#esriarcgis
+		const Esri_WorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+			attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+		});
+		/* eslint-enable max-len */
+
+		const baseLayers = {
+			"Map": osmLayer,
+			"Aerial": Esri_WorldImagery,
+		};
+		const overlays = {
+			"Markers": this._markerLayer,
+			"Connections": this._connectionLayer,
+		};
+
 		const routeMap = L.map('navigateMap', {
 			center: [startLat, startLong],
 			zoom: 20,
@@ -527,7 +604,10 @@ rhit.DevMapManager = class {
 			zoomDelta: 0.1,
 			doubleClickZoom: false,
 			maxBoundsViscosity: 0.9,
+			layers: [osmLayer, this._markerLayer, this._connectionLayer],
 		}); // .setView([startLat, startLong], 13);
+
+		L.control.layers(baseLayers, overlays).addTo(routeMap);
 
 		// expose for debugging purposes
 		window.exposedMapObj = routeMap;
@@ -543,7 +623,9 @@ rhit.DevMapManager = class {
 
 		routeMap.on('dblclick', (event) => {
 			console.log(event.latlng); // logs latlon position of where you click on the map, hopefully
-			this.createNodeAtPos(event.latlng.lat, event.latlng.lng);
+			if (this.state == "default") {
+				this.createNodeAtPos(event.latlng.lat, event.latlng.lng);
+			}
 		});
 		// From https://leafletjs.com/examples/zoom-levels/example-fractional.html
 		// https://leafletjs.com/examples/zoom-levels/
@@ -563,40 +645,32 @@ rhit.DevMapManager = class {
 		});
 		(new ZoomViewer).addTo(routeMap);
 
-		return routeMap;
+		this._routeMap = routeMap;
 	}
 
-	makeIcons() {
-		const makeIcon = (iconFileName) => {
-			const iconOptions = L.Icon.Default.prototype.options;
-			// iconOptions.iconUrl = "";
-			const CustomIcon = L.Icon.extend({
-				options: iconOptions,
-			});
-			const imgUrl = `/image/map/${iconFileName}.png`;
-			return new CustomIcon({
-				iconUrl: imgUrl,
-				iconRetinaUrl: imgUrl,
-				shadowUrl: `/image/map/marker-shadow.png`,
-			});
-		};
-
-		return {
-			green: makeIcon("green-pin"),
-			blue: makeIcon("blue-pin"),
-			orange: makeIcon("orange-pin"),
-			red: makeIcon("red-pin"),
-			small: makeIcon("small-pin"),
-		};
+	drawMapLineFromConnection(connection, map, colorString) {
+		const place1 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place1FbID);
+		const place2 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place2FbID);
+		L.polyline([[place1.lat, place1.lon], [place2.lat, place2.lon]], {
+			color: colorString,
+			pane: "shadowPane",
+		})
+			.addTo(this._connectionLayer);
 	}
 
-	populateDevMap(routeMap) {
+	populateDevMap() {
 		// add markers to the map
 		const nodeMap = rhit.mapDataSubsystemSingleton.nodeData;
 		for (const nodeId in nodeMap) {
 			if (Object.hasOwnProperty.call(nodeMap, nodeId)) {
 				const mapNode = nodeMap[nodeId];
-				this.spawnDevMarkerFromMapNode(mapNode, routeMap);
+				this.spawnDevMarkerFromMapNode(mapNode, this._routeMap);
+			}
+		}
+		for (const connectionItem in rhit.mapDataSubsystemSingleton.connectionData) {
+			if (Object.hasOwnProperty.call(rhit.mapDataSubsystemSingleton.connectionData, connectionItem)) {
+				const connection = rhit.mapDataSubsystemSingleton.connectionData[connectionItem];
+				this.drawMapLineFromConnection(connection, this._connectionLayer, "red");
 			}
 		}
 	}
@@ -606,6 +680,8 @@ rhit.DevMapManager = class {
 			`<br/>searchable?:${mapNode.searchable}`+
 			// `<br/>i:${mapNode.vertexIndex}` +
 			`<br/><button onclick="rhit.devMapManagerSingleton._selectMarker('${mapNode.fbKey}')">Select me</button>` +
+			`<br/><button onclick="rhit.devMapManagerSingleton._connectWithSelectedMarker('${mapNode.fbKey}')">Connect me with selected</button>` +
+			`<br/><button onclick="rhit.devMapManagerSingleton._deleteMarker('${mapNode.fbKey}')">Delete</button>` +
 			`<br/><button onclick="rhit.devMapManagerSingleton._updateFromMarker('${mapNode.fbKey}')">Update pos</button>`;
 	}
 
@@ -614,18 +690,32 @@ rhit.DevMapManager = class {
 			// Revert color of old selection if it exists
 			this.selectedMarkerElement.classList.toggle("marker-dev-selected-1");
 		}
+		if (fbKey === this.selectedMarkerFbKey) {
+			// If selected the same thing, unset and return
+			this.selectedMarkerElement = null;
+			this.selectedMarkerFbKey = null;
+			return false;
+		}
 		// Replace with new
 		this.selectedMarkerElement = this.lastClickedMarkerElement;
-		this.selectedNodeAFbId = fbKey;
+		this.selectedMarkerFbKey = fbKey;
 		// Color new
 		this.selectedMarkerElement.classList.toggle("marker-dev-selected-1");
 		console.log("Now selected:", fbKey);
+		return true;
+	}
+
+	_deleteMarker(fbKey) {
+		console.log("Delete", fbKey);
+		const marker = this.fbKeyMarkerMap[fbKey];
+		console.log("Leaflet Marker is ", marker);
+		this._deleteLocation(fbKey);
 	}
 
 	_updateFromMarker(fbKey) {
 		console.log("Update", fbKey);
 		const marker = this.fbKeyMarkerMap[fbKey];
-		console.log("Marker is ", marker);
+		console.log("Leaflet Marker is ", marker);
 		const latlng = marker._latlng;
 		rhit.mapDataSubsystemSingleton._locationsRef.doc(fbKey).update({
 			location: new firebase.firestore.GeoPoint(latlng.lat, latlng.lng),
@@ -636,22 +726,72 @@ rhit.DevMapManager = class {
 		});
 	}
 
+	_connectWithSelectedMarker(fbKey) {
+		console.log(`Popup connect ${fbKey} with selected: ${this.selectedMarkerFbKey}`);
+		// const marker = this.fbKeyMarkerMap[fbKey];
+		// console.log("Marker is ", marker);
+		this._connectTwoFbKeys(fbKey, this.selectedMarkerFbKey);
+	}
+
+	_connectTwoFbKeys(fbKeyPlace1, fbKeyPlace2) {
+		if (fbKeyPlace1 && fbKeyPlace2) {
+			const newConnectionName = "Unnamed connection";
+			const place1Ref = rhit.mapDataSubsystemSingleton._locationsRef.doc(fbKeyPlace1);
+			const place2Ref = rhit.mapDataSubsystemSingleton._locationsRef.doc(fbKeyPlace2);
+
+			rhit.mapDataSubsystemSingleton._connectionsRef.add({
+				[rhit.FB_KEY_CON_NAME]: newConnectionName,
+				[rhit.FB_KEY_CON_PLACE1]: place1Ref,
+				[rhit.FB_KEY_CON_PLACE2]: place2Ref,
+				[rhit.FB_KEY_CON_STAIRCASE]: false,
+			})
+				.then( (docRef) => {
+					console.log("Got doc ref", docRef);
+					docRef.get().then((snapshot) => {
+						console.log("Got snapshot", snapshot);
+						const data = snapshot.data();
+
+						const newConnection = new rhit.Connection(docRef.id, data);
+						rhit.mapDataSubsystemSingleton._connections[docRef.id] = newConnection;
+						this.drawMapLineFromConnection(newConnection, this._connectionLayer, "red");
+					});
+				})
+				.catch(function (error) {
+					console.error("Error connecting nodes: error adding document: ", error);
+				});
+		} else {
+			console.error(`Tried to create a connection between one or more invalid keys: ${fbKeyPlace1}, ${fbKeyPlace2}`);
+		}
+	}
+
+	// TODO clean up connections that connect to it
+	_deleteLocation(fbKey) {
+		rhit.mapDataSubsystemSingleton._locationsRef.doc(fbKey).delete().then(() => {
+			console.log("Document successfully deleted! WARNING - connections unaffected!");
+		}).catch((error) => {
+			console.error("Error removing document: ", error);
+		});
+	}
+
 	spawnDevMarkerFromMapNode(mapNode, routeMap) {
 		const devMarker = L.marker([mapNode.lat, mapNode.lon],
 			{
 				draggable: true,
 				autoPan: true,
-				icon: mapNode.searchable ? this.icons.blue : this.icons.small,
+				icon: mapNode.searchable ? rhit.icons.blue : rhit.icons.small,
 			}).addTo(routeMap)
-			.bindPopup(this._mapNodePopupHTML(mapNode));
+			.bindPopup(this._mapNodePopupHTML(mapNode))
+			.addTo(this._markerLayer);
 		devMarker.on('click', (event) => {
-			this.nodeClickHandler(devMarker);
-
 			// Selection logic and coloring
 			const htmlElement = event.originalEvent.target;
 			this.lastClickedMarkerElement = htmlElement;
 		});
+		devMarker.on('dblclick', (event) => {
+			this.nodeClickHandler(devMarker);
+		});
 		this.fbKeyMarkerMap[mapNode.fbKey] = devMarker;
+		// console.log(devMarker);
 	}
 
 	nodeClickHandler(marker) {
@@ -660,6 +800,18 @@ rhit.DevMapManager = class {
 		console.log(`Current editing state: ${this.state}`);
 		const popup = marker.getPopup();
 		const testContent = popup.getContent();
+
+		const idGrabberRegex = /id:<span class="code">(.*)<\/span>/;
+		const idFromMarker = idGrabberRegex.exec(testContent)[1];
+		console.log(`Grabbing ID with regex, result: ${idFromMarker}`);
+		const prevMarkerId = this.selectedMarkerFbKey;
+		if (!prevMarkerId) {
+			// if there was no previously selected marker
+			// just select and return
+			this._selectMarker(idFromMarker);
+			return;
+		}
+		const selectedNewCondition = this._selectMarker(idFromMarker);
 		// console.log(testContent);
 		// const testContentJSON = JSON.parse(testContent);
 		// console.log(`title:${testContentJSON.title}\n id: ${testContentJSON.id}`);
@@ -670,6 +822,9 @@ rhit.DevMapManager = class {
 			break;
 		case "connector":
 			// handle create connections
+			if (selectedNewCondition) {
+				this._connectWithSelectedMarker(prevMarkerId);
+			}
 			break;
 		case "disconnector":
 			// handle delete connections
@@ -707,8 +862,8 @@ rhit.DevMapManager = class {
 					const data = snapshot.data();
 
 					const newMapNode = new rhit.MapNode(docRef.id, data, -1);
-					rhit.mapDataSubsystemSingleton.nodeData[docRef] = newMapNode;
-					this.spawnDevMarkerFromMapNode(newMapNode, this.routeMap);
+					rhit.mapDataSubsystemSingleton._fbIDToMapNode[docRef.id] = newMapNode;
+					this.spawnDevMarkerFromMapNode(newMapNode, this._routeMap);
 				});
 			})
 			.catch(function (error) {
@@ -955,7 +1110,7 @@ rhit.MapDataSubsystem = class {
 	_constructGraph(connectionData) {
 		// https://www.npmjs.com/package/js-graph-algorithms#create-directed-weighted-graph
 		// https://rawgit.com/chen0040/js-graph-algorithms/master/examples/example-weighted-digraph.html
-		const graph = new jsgraphs.WeightedDiGraph(this.numNodes);
+		this.navGraph = new jsgraphs.WeightedDiGraph(this.numNodes);
 
 		for (const key in connectionData) {
 			// Special safety check, see https://eslint.org/docs/rules/guard-for-in
@@ -970,24 +1125,45 @@ rhit.MapDataSubsystem = class {
 				// if it's a staircase, it's worth extra distance
 				const adjustedDistance = connect.staircase ? distanceMeters * STAIRCASE_DISTANCE_MULT : distanceMeters;
 
+				const startVertIndex = startMapNode.vertexIndex;
+				const endVertIndex = endMapNode.vertexIndex;
+				// console.log(`Edge from ${startMapNode.vertexIndex} to ${endMapNode.vertexIndex}`);
 				// add the graph edge
-				graph.addEdge(new jsgraphs.Edge(startMapNode.vertexIndex, endMapNode.vertexIndex, adjustedDistance));
+				this.navGraph.addEdge(new jsgraphs.Edge(startVertIndex, endVertIndex, adjustedDistance));
+
+				// Digraph, so add the flipped edge
+				this.navGraph.addEdge(new jsgraphs.Edge(endVertIndex, startVertIndex, adjustedDistance));
 
 				// label the nodes with their names.
 				// probably a better place for this, but the graph doesn't exist until now.
 				// note that this overwrites names a bunch of times (replace this later probably)
-				graph.node(startMapNode.vertexIndex).label = startMapNode.name;
-				graph.node(endMapNode.vertexIndex).label = endMapNode.name;
+				this.navGraph.node(startVertIndex).label = startMapNode.name;
+				this.navGraph.node(endVertIndex).label = endMapNode.name;
 			}
 		}
 
-		this.navGraph = graph;
+		// this.navGraph = graph;
 		// console.log(g);
 
 		// Debug
-		window.graph = graph;
+		window.graph = this.navGraph;
+	}
 
-		return graph;
+	_dijkstraBetweenFbKeys(fbKeyStart, fbKeyEnd) {
+		const vertexIndexStart = this.getGraphVertexIndexFromFbID(fbKeyStart);
+		const vertexIndexEnd = this.getGraphVertexIndexFromFbID(fbKeyEnd);
+		console.log(`Dijkstra from ${vertexIndexStart} to ${vertexIndexEnd}`);
+
+
+		const dijkstra = new jsgraphs.Dijkstra(this.navGraph, vertexIndexStart);
+		// console.log("Nav graph vertexes", this.navGraph.V);
+		// console.log(this.navGraph);
+		// console.log(dijkstra);
+		if (dijkstra.hasPathTo(vertexIndexEnd)) {
+			return dijkstra.pathTo(vertexIndexEnd);
+		} else {
+			console.error("No path between nodes");
+		}
 	}
 
 	_writeCachedMapData(versionEpochTime) {
@@ -1024,7 +1200,7 @@ rhit.MapDataSubsystem = class {
 		}
 		this._namesAndAliasToFbId = mapNodeValidNameToFbId;
 
-		console.log(mapNodeValidNameToFbId);
+		// console.log(mapNodeValidNameToFbId);
 	}
 };
 
@@ -1069,9 +1245,9 @@ rhit.MapNode = class {
 rhit.Connection = class {
 	constructor (fbKey, fbConnectionDocumentData) {
 		this.fbKey = fbKey;
-		this.place1FbID = fbConnectionDocumentData.place1.id;
-		this.place2FbID = fbConnectionDocumentData.place2.id;
-		this.staircase = fbConnectionDocumentData["staircase?"];
+		this.place1FbID = fbConnectionDocumentData[rhit.FB_KEY_CON_PLACE1].id;
+		this.place2FbID = fbConnectionDocumentData[rhit.FB_KEY_CON_PLACE2].id;
+		this.staircase = fbConnectionDocumentData[rhit.FB_KEY_CON_STAIRCASE];
 	}
 
 	// get rawDistance() {
@@ -1103,6 +1279,7 @@ rhit.initializePage = function () {
 		new rhit.HomeController();
 	} else if (document.querySelector("#routePage")) {
 		console.log("You are on the Route page.");
+		rhit.icons = rhit.makeIcons();
 
 		// get url parameter
 		const startPoint = urlParams.get("start");
@@ -1115,6 +1292,7 @@ rhit.initializePage = function () {
 			rhit.routeManagerSingleton.validateURLParamPoints();
 			rhit.routeManagerSingleton.populateMap();
 			rhit.routeManagerSingleton.setDirectionsHeading();
+			rhit.routeManagerSingleton.navAndDrawPath();
 		});
 		rhit.routeManagerSingleton = new rhit.RouteManager(startPoint, destPoint);
 		new rhit.RouteController(startPoint, destPoint);
@@ -1126,14 +1304,17 @@ rhit.initializePage = function () {
 	} else if (document.querySelector("#devPage")) {
 		// do dev page stuff
 		const authorizedUsers = {chanb: true, budakrc: true, kleinsv: true};
+		rhit.icons = rhit.makeIcons();
 
 		if (!(rhit.fbAuthManagerSingleton.isSignedIn && authorizedUsers[rhit.fbAuthManagerSingleton.uid])) {
 			window.alert("INVALID USER DETECTED");
 			window.location.href = "/";
 		}
 		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(true, true, () => {
-			rhit.devMapManagerSingleton = new rhit.DevMapManager();
+			console.log("Dev Map data system done loading callback");
+			rhit.devMapManagerSingleton.populateDevMap();
 		});
+		rhit.devMapManagerSingleton = new rhit.DevMapManager();
 	}
 };
 
