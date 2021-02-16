@@ -69,6 +69,7 @@ w3schools.autocomplete = function (inp, arr, callOnAcceptAutocompleteItem) {
 		/* for each item in the array...*/
 
 		let numResults = 0;
+		const searchResults = {};
 		for (i = 0; i < arr.length; i++) {
 			/* check if the item starts with the same letters as the text field value:*/
 			// if (arr[i].substr(0, val.length).toUpperCase() == val.toUpperCase()) {
@@ -79,18 +80,27 @@ w3schools.autocomplete = function (inp, arr, callOnAcceptAutocompleteItem) {
 
 			if (arr[i].toUpperCase().indexOf(val.toUpperCase()) != -1) {
 			/* create a DIV element for each matching element:*/
+				const fbId = rhit.homeManagerSingleton.getFbIdFromName(arr[i]);
+				const trueMapNode = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(fbId);
+				const trueName = trueMapNode.name;
+				if (searchResults[trueName]) {
+					// if we've already displayed this result, skip it
+					continue;
+				}
+				searchResults[trueName] = true; // tag as found
 				b = document.createElement("DIV");
 
-				const valueIndex = arr[i].toUpperCase().indexOf(val.toUpperCase());
+				// const valueIndex = trueName.toUpperCase().indexOf(val.toUpperCase());
 				// first add everything up to index
-				b.innerHTML += arr[i].slice(0, valueIndex);
-				// bold everything from index up to index + length of val
-				b.innerHTML += `<strong>${arr[i].slice(valueIndex, valueIndex+val.length)}</strong>`;
-				// add everything from index + length of val to the end of arr[i]
-				b.innerHTML += arr[i].substr(valueIndex + val.length);
+				// b.innerHTML += trueName.slice(0, valueIndex);
+				// // everything from index up to index + length of val
+				// b.innerHTML += `${trueName.slice(valueIndex, valueIndex+val.length)}`;
+				// // add everything from index + length of val to the end of arr[i]
+				// b.innerHTML += trueName.substr(valueIndex + val.length);
 
+				b.innerHTML += trueName;
 				/* insert a input field that will hold the current array item's value:*/
-				b.innerHTML += `<input type='hidden' value='${arr[i]}'>`;
+				b.innerHTML += `<input type='hidden' value='${trueName}'>`;
 				/* execute a function when someone clicks on the item value (DIV element):*/
 				b.addEventListener("click", function(e) {
 				/* insert the value for the autocomplete text field:*/
@@ -379,11 +389,14 @@ rhit.RouteManager = class {
 
 	navAndDrawPath() {
 		const path = rhit.mapDataSubsystemSingleton._dijkstraBetweenFbKeys(this._startPointFbId, this._destPointFbId);
+		let pathLength = 0;
 		for (let i = 0; i < path.length; ++i) {
 			const e = path[i];
 			console.log(`${e.from()} => ${e.to()}: ${e.weight}`);
+			pathLength += e.weight;
 			this.drawMapLineFromGraphVertices(e.from(), e.to(), this._connectionLayer, "red");
 		}
+		console.log("Path is total length", pathLength);
 	}
 
 	_createMap() {
