@@ -14,6 +14,21 @@ body {
 	z-index: 9001;
 }
 
+.desktop-only {
+	display: none;
+}
+
+#routeNavItem {
+	display: flex;
+	flex-direction: row;
+	align-items: baseline;
+	
+}
+
+#directionsTitle {
+	padding-right: 20px;
+}
+
 .page-container {
 	margin-top: 75px;
 }
@@ -119,8 +134,12 @@ body {
  /* Extra small devices (portrait phones, less than 576px) */
  /* No media query since this is the default in Bootstrap */
 
+#mapContainer {
+	/* padding-bottom: 20px; */
+}
+
 #navigateMap {
-	height: 500px;
+	height: 80%;
 	background-color: darkgray;
 }
 
@@ -140,17 +159,25 @@ body {
 
  /* Small devices (landscape phones, 576px and up) */
 @media (min-width: 576px) {
-
+	.page-container {
+		margin-top: 40px;
+	}
 }
 
  /* Medium devices (tablets, 768px and up) */
 @media (min-width: 768px) {
-
+	
 }
 
  /* Large devices (desktops, 992px and up) */
 @media (min-width: 992px) {
+	#navigateMap {
+		height: 500px;
+	}
 
+	.desktop-only {
+		display: inherit;
+	}
 }
 
  /* Extra large devices (large desktops, 1200px and up) */
