@@ -297,9 +297,17 @@ rhit.HomeManager = class {
 
 	}
 
-	setupSearchBoxes(validLocationsArray) {
+	setupSearchBoxes(validLocationsArray, urlParams) {
 		const startInput = document.querySelector("#startInput");
 		const destInput = document.querySelector("#destInput");
+
+		if (urlParams.get("start")) {
+			destInput.value = urlParams.get("start");
+		}
+
+		if (urlParams.get("dest")) {
+			destInput.value = urlParams.get("dest");
+		}
 
 		const goIfBothFilledOut = function() {
 			$("#submitLocation").click();
@@ -1286,7 +1294,7 @@ rhit.initializePage = function () {
 		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(false, true, () => {
 			console.log("Home page map system callback");
 			const validPlaces = Object.keys(rhit.mapDataSubsystemSingleton.namesToFbId);
-			rhit.homeManagerSingleton.setupSearchBoxes(validPlaces);
+			rhit.homeManagerSingleton.setupSearchBoxes(validPlaces, urlParams);
 		});
 		rhit.homeManagerSingleton = new this.HomeManager();
 		new rhit.HomeController();
