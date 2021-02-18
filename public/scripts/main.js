@@ -105,6 +105,7 @@ w3schools.autocomplete = function (inp, arr, callOnAcceptAutocompleteItem) {
 				b.addEventListener("click", function(e) {
 				/* insert the value for the autocomplete text field:*/
 					inp.value = this.getElementsByTagName("input")[0].value;
+					console.log("element", this.getElementsByTagName("input")[0]);
 					/* close the list of autocompleted values,
 					(or any other open lists of autocompleted values:*/
 					closeAllLists();
