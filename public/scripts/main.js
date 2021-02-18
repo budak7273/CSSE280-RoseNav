@@ -677,6 +677,7 @@ rhit.DevMapManager = class {
 		const place1 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place1FbID);
 		const place2 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place2FbID);
 		if (!place1 || !place2) {
+			this._deleteConnection(connection.fbKey);
 			return;
 		}
 		const connectionLine = L.polyline([[place1.lat, place1.lon], [place2.lat, place2.lon]], {
