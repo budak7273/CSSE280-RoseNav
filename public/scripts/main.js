@@ -860,7 +860,16 @@ rhit.DevMapManager = class {
 		const nodeNumber = document.querySelector("#nodeNumber").value;
 		const nodeAliasesString = document.querySelector("#nodeAliases").value;
 		const nodeSearchable = document.querySelector("#nodeSearchable").checked;
-		const nodeAliases = nodeAliasesString.split("\n");
+
+		// Trim and CSV textbox input
+		const nodeAliasesRaw = nodeAliasesString.split(",");
+		const nodeAliases = [];
+		nodeAliasesRaw.forEach((element, index) => {
+			const trimmed = element.trim();
+			if (trimmed.length > 0) {
+				nodeAliases[index] = trimmed;
+			}
+		});
 
 		let newNodeName = nodeName;
 		if (parseInt(nodeNumber) >= 0) {
@@ -869,7 +878,7 @@ rhit.DevMapManager = class {
 		}
 		console.log(`Trying to make node at lat: ${lat}, lon: ${long} with name = ${newNodeName}, and aliases: ${nodeAliases}`);
 
-		// first create a firebase document so that we can use it's ID
+		// first create a firebase document so that we can use its ID
 		rhit.mapDataSubsystemSingleton._locationsRef.add({
 			[rhit.FB_KEY_LOC_GEO]: new firebase.firestore.GeoPoint(lat, long),
 			[rhit.FB_KEY_LOC_NAME]: newNodeName,
