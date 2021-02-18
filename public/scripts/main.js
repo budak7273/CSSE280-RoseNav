@@ -1174,6 +1174,10 @@ rhit.MapDataSubsystem = class {
 				// get relevant map nodes from the firebase reference data
 				const startMapNode = this.getMapNodeFromFbID(connect.place1FbID);
 				const endMapNode = this.getMapNodeFromFbID(connect.place2FbID);
+				if (!startMapNode || !endMapNode) {
+					console.log("Couldn't find nodes, aborting internal graph creation");
+					continue;
+				}
 				const distanceMeters = this.getMapNodeDistanceMeters(startMapNode, endMapNode);
 
 				// if it's a staircase, it's worth extra distance
