@@ -502,6 +502,9 @@ rhit.RouteManager = class {
 	}
 
 	drawMapLineFromMapNodes(node1, node2, layer, colorString) {
+		if (!node1 || !node2) {
+			return;
+		}
 		L.polyline([[node1.lat, node1.lon], [node2.lat, node2.lon]], {
 			color: colorString,
 			pane: "shadowPane",
@@ -673,6 +676,9 @@ rhit.DevMapManager = class {
 	drawMapLineFromConnection(connection, map, colorString) {
 		const place1 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place1FbID);
 		const place2 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place2FbID);
+		if (!place1 || !place2) {
+			return;
+		}
 		const connectionLine = L.polyline([[place1.lat, place1.lon], [place2.lat, place2.lon]], {
 			color: colorString,
 			pane: "shadowPane",
