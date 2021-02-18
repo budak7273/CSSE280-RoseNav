@@ -672,11 +672,18 @@ rhit.DevMapManager = class {
 	drawMapLineFromConnection(connection, map, colorString) {
 		const place1 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place1FbID);
 		const place2 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place2FbID);
-		L.polyline([[place1.lat, place1.lon], [place2.lat, place2.lon]], {
+		const connectionLine = L.polyline([[place1.lat, place1.lon], [place2.lat, place2.lon]], {
 			color: colorString,
 			pane: "shadowPane",
 		})
 			.addTo(this._connectionLayer);
+		connectionLine.on('dblclick', (event) => {
+			if (this.state == "disconnector") {
+				// calls a connection deleter
+				console.log("Deleting connection: ", connection);
+				this._deleteConnectionLine(connection.fbKey, connectionLine);
+			}
+		});
 	}
 
 	populateDevMap() {
@@ -729,8 +736,14 @@ rhit.DevMapManager = class {
 	_deleteMarker(fbKey) {
 		console.log("Delete", fbKey);
 		const marker = this.fbKeyMarkerMap[fbKey];
-		console.log("Leaflet Marker is ", marker);
+		console.log("Removing Leaflet Marker", marker);
+		marker.remove();
 		this._deleteLocation(fbKey);
+	}
+	_deleteConnectionLine(fbKey, connectionLine) {
+		console.log("Removing Leaflet Polyline", connectionLine);
+		connectionLine.remove(); // removes the line from the map on the client side
+		this._deleteConnection(fbKey); // remove from firebase side
 	}
 
 	_updateFromMarker(fbKey) {
@@ -785,10 +798,16 @@ rhit.DevMapManager = class {
 		}
 	}
 
-	// TODO clean up connections that connect to it
 	_deleteLocation(fbKey) {
 		rhit.mapDataSubsystemSingleton._locationsRef.doc(fbKey).delete().then(() => {
 			console.log("Document successfully deleted! WARNING - connections unaffected!");
+		}).catch((error) => {
+			console.error("Error removing document: ", error);
+		});
+	}
+	_deleteConnection(fbKey) {
+		rhit.mapDataSubsystemSingleton._connectionsRef.doc(fbKey).delete().then(() => {
+			console.log("Document successfully deleted!");
 		}).catch((error) => {
 			console.error("Error removing document: ", error);
 		});
@@ -826,7 +845,7 @@ rhit.DevMapManager = class {
 		const idFromMarker = idGrabberRegex.exec(testContent)[1];
 		console.log(`Grabbing ID with regex, result: ${idFromMarker}`);
 		const prevMarkerId = this.selectedMarkerFbKey;
-		if (!prevMarkerId) {
+		if (!prevMarkerId && this.state != "deleter") {
 			// if there was no previously selected marker
 			// just select and return
 			this._selectMarker(idFromMarker);
@@ -848,10 +867,14 @@ rhit.DevMapManager = class {
 			}
 			break;
 		case "disconnector":
-			// handle delete connections
+			// delete connections gets handled by clicking on the connections themselves
 			break;
 		case "deleter":
 			// handle node delete
+			this._deleteMarker(idFromMarker);
+			// remove selection from deleted node so we don't have weird behavior of making connections with deleted nodes
+			this.selectedMarkerFbKey = null;
+			this.selectedMarkerElement = null;
 			break;
 		}
 	}
