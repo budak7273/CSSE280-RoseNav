@@ -175,6 +175,11 @@ input[type=submit] {
 	color: #ffffff;
 }
 
+.add-saved-location-button {
+	line-height: 30px;
+	margin-left: 20px;
+}
+
  /* Extra small devices (portrait phones, less than 576px) */
  /* No media query since this is the default in Bootstrap */
 
