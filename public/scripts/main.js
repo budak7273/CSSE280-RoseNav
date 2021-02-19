@@ -942,14 +942,14 @@ rhit.SettingsController = class {
 		document.querySelector("#submitWalkSet").onclick = (event) => {
 			const walkSpeed = document.querySelector("#inputWalk").value;
 			// todo trim walkspeed to be a number (integer?) and not include m/s
-			// rhit.fbSingleQuoteManager.update(walkSpeed, "walk");
+			// rhit.fbAuthManagerSingleton.update(walkSpeed, "walk");
 		};
 		$('#walkSetModal').on("show.bs.modal", (event) => {
-			document.querySelector("#inputWalk").value = rhit.fbSingleQuoteManager.walkSpeed;
+			document.querySelector("#inputWalk").value = rhit.fbAuthManagerSingleton.walkSpeed;
 			document.querySelector("#inputWalk").focus();
 		});
 		$('#runSetModal').on("show.bs.modal", (event) => {
-			document.querySelector("#inputRun").value = rhit.fbSingleQuoteManager.runSpeed;
+			document.querySelector("#inputRun").value = rhit.fbAuthManagerSingleton.runSpeed;
 			document.querySelector("#inputRun").focus();
 		});
 		$('#sprintSetModal').on("show.bs.modal", (event) => {
@@ -964,7 +964,6 @@ rhit.SettingsController = class {
 				console.error("Error deleting document: ", error);
 			});
 		};
-		rhit.fbSingleQuoteManager.beginListening(this.updateView.bind(this));
 		document.querySelector("#speedToggleWalking").onclick = (event) => {
 			// switch user speed to walking
 		};
