@@ -58,6 +58,11 @@ body {
 
 #directionsTitle {
 	padding-right: 20px;
+	font-size: 15px;
+}
+
+#directionsItem {
+	font-size: 0.9rem;
 }
 
 .page-container {
@@ -65,14 +70,15 @@ body {
 }
 
 .bottom-float {
-	/* position: fixed;
-	bottom: 10px;
+	position: fixed;
+	/*bottom: 10px;
 	z-index: 999;
 	
 	/* Horizontal centering */
 	/* https://stackoverflow.com/a/2006008 */
-	/* left: 0;
-	right: 0; */
+	left: 0;
+	right: 0;
+	top: 85vh;
 }
 
 .bmd-layout-content {
@@ -263,6 +269,14 @@ input[type=submit] {
 		left: 0;
 		right: 0;
 	}
+
+	#directionsTitle {
+		font-size: 1.5rem;
+	}
+
+	#directionsItem {
+		font-size: 1.25rem;
+	}
 }
 
  /* Large devices (desktops, 992px and up) */
@@ -278,7 +292,5 @@ input[type=submit] {
 
  /* Extra large devices (large desktops, 1200px and up) */
 @media (min-width: 1200px) {
-	#navigateMap {
-		/* height: 180px; */
-	}
+	
 }
