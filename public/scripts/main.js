@@ -24,6 +24,8 @@ rhit.mapDataSubsystemSingleton = null;
 rhit.devMapManagerSingleton = null;
 
 /** globals */
+rhit.FB_COLLECTION_CONSTANTS = "Constants";
+rhit.FB_COLLECTION_USERS = "Users";
 rhit.FB_COLLECTION_LOCATIONS = "Locations";
 rhit.FB_COLLECTION_CONNECTIONS = "Connections";
 rhit.FB_KEY_LOC_GEO = "location";
@@ -937,6 +939,27 @@ rhit.DevMapManager = class {
 rhit.SettingsController = class {
 	constructor() {
 		console.log("Settings controller created");
+		document.querySelector("#menuSignOut").onclick = (event) => {
+			firebase.auth().signOut();
+		};
+		document.querySelector("#submitWalkSet").onclick = (event) => {
+			const walkSpeed = document.querySelector("#inputWalk").value;
+			// todo trim walkspeed to be a number (integer?) and not include m/s
+			// rhit.fbSingleQuoteManager.update(walkSpeed, "walk");
+		};
+		$('#walkSetModal').on("show.bs.modal", (event) => {
+			document.querySelector("#inputWalk").value = rhit.fbSingleQuoteManager.quote;
+			document.querySelector("#inputWalk").focus();
+		});
+		document.querySelector("#submitDeleteQuote").onclick = (event) => {
+			rhit.fbSingleQuoteManager.delete().then(function () {
+				console.log("Document successfully deleted!");
+				window.location.href = "/list.html";
+			}).catch(function (error) {
+				console.error("Error deleting document: ", error);
+			});
+		};
+		rhit.fbSingleQuoteManager.beginListening(this.updateView.bind(this));
 		document.querySelector("#speedToggleWalking").onclick = (event) => {
 			// switch user speed to walking
 		};
@@ -960,11 +983,18 @@ rhit.SettingsManager = class {
 rhit.FbAuthManager = class {
 	constructor() {
 		this._user = null;
+		this._ref = firebase.firestore();
+		this._speedConstants = this._ref.collection(rhit.FB_COLLECTION_CONSTANTS).doc("DefaultUserSettings");
+		// todo get default speeds from speedConstants somehow
+		this._walkSpeed = 1;
+		this._runSpeed = 4;
+		this._sprintSpeed = 6;
 		console.log("Auth manager created");
 	}
 	beginListening(changeListener) {
 		firebase.auth().onAuthStateChanged((user) => {
 			this._user = user;
+			// todo update speeds based on user preference
 			changeListener();
 		});
 	}
