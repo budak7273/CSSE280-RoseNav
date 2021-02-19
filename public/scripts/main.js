@@ -105,6 +105,7 @@ w3schools.autocomplete = function (inp, arr, callOnAcceptAutocompleteItem) {
 				b.addEventListener("click", function(e) {
 				/* insert the value for the autocomplete text field:*/
 					inp.value = this.getElementsByTagName("input")[0].value;
+					console.log("element", this.getElementsByTagName("input")[0]);
 					/* close the list of autocompleted values,
 					(or any other open lists of autocompleted values:*/
 					closeAllLists();
@@ -501,6 +502,9 @@ rhit.RouteManager = class {
 	}
 
 	drawMapLineFromMapNodes(node1, node2, layer, colorString) {
+		if (!node1 || !node2) {
+			return;
+		}
 		L.polyline([[node1.lat, node1.lon], [node2.lat, node2.lon]], {
 			color: colorString,
 			pane: "shadowPane",
@@ -672,6 +676,10 @@ rhit.DevMapManager = class {
 	drawMapLineFromConnection(connection, map, colorString) {
 		const place1 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place1FbID);
 		const place2 = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(connection.place2FbID);
+		if (!place1 || !place2) {
+			this._deleteConnection(connection.fbKey);
+			return;
+		}
 		const connectionLine = L.polyline([[place1.lat, place1.lon], [place2.lat, place2.lon]], {
 			color: colorString,
 			pane: "shadowPane",
@@ -1173,6 +1181,10 @@ rhit.MapDataSubsystem = class {
 				// get relevant map nodes from the firebase reference data
 				const startMapNode = this.getMapNodeFromFbID(connect.place1FbID);
 				const endMapNode = this.getMapNodeFromFbID(connect.place2FbID);
+				if (!startMapNode || !endMapNode) {
+					console.log("Couldn't find nodes, aborting internal graph creation");
+					continue;
+				}
 				const distanceMeters = this.getMapNodeDistanceMeters(startMapNode, endMapNode);
 
 				// if it's a staircase, it's worth extra distance
