@@ -1,6 +1,8 @@
 :root {
 	--offwhite: #DDDDDD;
+	--offwhiteDarker: #AAAAAA;
 	--rosered: #800000;
+	--lightrosered: #A40000;
 }
 
 body {
@@ -14,15 +16,44 @@ body {
 	z-index: 9001;
 }
 
+.list-group-item {
+	cursor: pointer;
+}
+
+.list-group-item:hover {
+	background-color: var(--offwhiteDarker);
+}
+
 .desktop-only {
 	display: none;
 }
 
 #routeNavItem {
+	/* display: flex;
+	flex-direction: row;
+	align-items: baseline; */
+	max-height: 100px;
+}
+
+/*
+#speedNavItem {
 	display: flex;
 	flex-direction: row;
 	align-items: baseline;
 	
+} */
+
+.favoritePlaceLising {
+	background-color: white;
+	border-radius: 10px;
+	padding: 10px;
+	margin-bottom: 10px;
+	/* color: --whi; */
+}
+
+.favoritePlaceLising > p {
+	padding-left: 10px;
+	margin-bottom: 0px;
 }
 
 #directionsTitle {
@@ -34,14 +65,14 @@ body {
 }
 
 .bottom-float {
-	position: fixed;
+	/* position: fixed;
 	bottom: 10px;
 	z-index: 999;
 	
 	/* Horizontal centering */
 	/* https://stackoverflow.com/a/2006008 */
-	left: 0;
-	right: 0;
+	/* left: 0;
+	right: 0; */
 }
 
 .bmd-layout-content {
@@ -89,22 +120,26 @@ body {
 	/*the container must be positioned relative:*/
 	position: relative;
 	display: inline-block;
-  }
-  input {
+}
+
+input {
 	border: 1px solid transparent;
 	background-color: #f1f1f1;
 	padding: 10px;
 	font-size: 16px;
-  }
-  input[type=text] {
+}
+
+input[type=text] {
 	background-color: #f1f1f1;
 	width: 100%;
-  }
-  input[type=submit] {
+}
+
+input[type=submit] {
 	background-color: DodgerBlue;
 	color: #fff;
-  }
-  .autocomplete-items {
+}
+
+.autocomplete-items {
 	position: absolute;
 	border: 1px solid #d4d4d4;
 	border-bottom: none;
@@ -114,22 +149,25 @@ body {
 	top: 100%;
 	left: 0;
 	right: 0;
-  }
-  .autocomplete-items div {
+}
+
+.autocomplete-items div {
 	padding: 10px;
 	cursor: pointer;
 	background-color: #fff;
 	border-bottom: 1px solid #d4d4d4;
-  }
-  .autocomplete-items div:hover {
+}
+
+.autocomplete-items div:hover {
 	/*when hovering an item:*/
 	background-color: #e9e9e9;
-  }
-  .autocomplete-active {
-	/*when navigating through the items using the arrow keys:*/
+}
+
+.autocomplete-active {
+	/* when navigating through the items using the arrow keys: */
 	background-color: DodgerBlue !important;
 	color: #ffffff;
-  }
+}
 
  /* Extra small devices (portrait phones, less than 576px) */
  /* No media query since this is the default in Bootstrap */
@@ -176,12 +214,12 @@ body {
 
 /* Rules for using icons as rose red on a light background. */
 .rose-text {
-	color: rgba(128, 0, 0, 1);
+	color: var(--rosered);
 }
 
 /* Rules for using icons as light rose red on a light background. */
 .light-rose-text {
-	color: rgba(164, 0, 0, 1);
+	color: var(--lightrosered);
 }
 
 /* Rules for using icons as white on a dark background. */
@@ -194,13 +232,16 @@ body {
 	color: rgba(0, 0, 0, 1);
 }
 
-/* Trying to fight css specificity on radio buttons */
-/* #travelType>label span {
-	color: rgba(0, 0, 0, 1);
-} */
+#travelType label {
+	color: black;
+}
 
 .bmd-btn-icon {
 	margin: auto;
+}
+
+.navbar-brand.h4 {
+	font-size: 1.5rem;
 }
 
  /* Small devices (landscape phones, 576px and up) */
@@ -212,7 +253,16 @@ body {
 
  /* Medium devices (tablets, 768px and up) */
 @media (min-width: 768px) {
-	
+	.bottom-float {
+		position: fixed;
+		bottom: 10px;
+		z-index: 999;
+		
+		/* Horizontal centering */
+		/* https://stackoverflow.com/a/2006008 */
+		left: 0;
+		right: 0;
+	}
 }
 
  /* Large devices (desktops, 992px and up) */

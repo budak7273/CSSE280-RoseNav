@@ -21,80 +21,32 @@
 			</div>
 		</header>
 		<main class="bmd-layout-content">
-			<div id="settingsPage" class="container page-container">
-				<h3><strong>Set Your Saved Speeds</strong></h3>
+			<div id="savedLocationsPage" class="container page-container">
+				<h3><strong>Set Your Saved Locations</strong></h3>
+				<hr>
 				<div class="row justify-content-center">
 					<div class="col col-lg-3 d-flex flex-column justify-content-center">
 						<p class="text-center rose-text"><strong>Walking</strong></p>
 						<button type="button" class="btn bmd-btn-icon mx-auto" data-toggle="modal" data-target="#walkSetModal">
 							<i class="material-icons text-center rose-text">directions_walk</i>
 						</button>
-						<p id="speedSetWalking" class="text-center rose-text">Loading...</p>
+						<p id="speedSetWalking" class="text-center rose-text">1 m/s</p>
 					</div>
 					<div class="col col-lg-3 d-flex flex-column justify-content-center">
-						<p class="text-center rose-text"><strong>Running</strong></p>
+						<p class="text-center rose-text"><strong>Jogging</strong></p>
 						<button type="button" class="btn bmd-btn-icon mx-auto" data-toggle="modal" data-target="#runSetModal">
 							<i class="material-icons text-center rose-text">directions_run</i>
 						</button>
-						<p id="speedSetRunning" class="text-center rose-text">Loading...</p>
+						<p id="speedSetJogging" class="text-center rose-text">4 m/s</p>
 					</div>
 					<div class="col col-lg-3 d-flex flex-column justify-content-center">
 						<p class="text-center rose-text"><strong>Sprinting</strong></p>
 						<button type="button" class="btn bmd-btn-icon mx-auto" data-toggle="modal" data-target="#sprintSetModal">
 							<i class="material-icons text-center rose-text">run_circle</i>
 						</button>
-						<p id="speedSetSprinting" class="text-center rose-text">Loading...</p>
+						<p id="speedSetSprinting" class="text-center rose-text">6 m/s</p>
 					</div>
 				</div>
-				<hr>
-				<div id="travelType">
-					<h3><strong>Set Default Speed</strong></h3>
-					<div class="radio" id="speedToggleWalkingRadio">
-						<label>
-							<input type="radio" name="speedToggle" id="speedToggleWalking" value="option1">
-							&nbsp;&nbsp;&nbsp;Walking
-						</label>
-					</div>
-					<div class="radio" id="speedToggleRunningRadio">
-						<label>
-							<input type="radio" name="speedToggle" id="speedToggleRunning" value="option2">
-							&nbsp;&nbsp;&nbsp;Running
-						</label>
-					</div>
-					<div class="radio" id="speedToggleSprintingRadio">
-						<label>
-							<input type="radio" name="speedToggle" id="speedToggleSprinting" value="option3">
-							&nbsp;&nbsp;&nbsp;Sprinting
-						</label>
-					</div>
-				</div>
-				<hr>
-				<h3 id="savedLocationsHeader"><strong>Set Saved Locations</strong></h3>
-				<div class="savedLocations row justify-content-center">
-					<div class="container">
-						<!-- Add a new saved location -->
-						<div id="favoritePlacesLoadingBox" class="row justify-content-center">
-							<p>Loading search...</p>
-						</div>
-						<div id="favoritePlacesSearchBox" style="display: none;">
-							<div class="row justify-content-center">
-								<form autocomplete="off" action="/">
-									<div class="autocomplete" style="width:300px;">
-										<!-- <div id="invalidStartTooltip" role="tooltip">Invalid starting place</div> -->
-										<input id="placeInput" type="text" name="myStart" placeholder="Enter Place Name">
-									</div>
-								</form>
-								<div class="justify-content-center">
-									<button id="submitLocation"class="btn btn-red btn-icon">Add Favorite Place&nbsp;&nbsp;<i class="material-icons">add</i></button>
-								</div>
-							</div>
-						</div>
-					</div>
-					<div id="savedLocationsList">
-						Loading saved locations...
-					</div>
-				</div>
-				<hr>
 			</div>
 		</main>
 	</div>

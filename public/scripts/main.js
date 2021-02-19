@@ -20,6 +20,7 @@ rhit.fbAuthManagerSingleton = null;
 rhit.routeManagerSingleton = null;
 rhit.homeManagerSingleton = null;
 rhit.settingsManagerSingleton = null;
+rhit.savedLocationsManagerSingleton = null;
 rhit.mapDataSubsystemSingleton = null;
 rhit.devMapManagerSingleton = null;
 
@@ -44,13 +45,62 @@ rhit.KEY_STORAGE_NODES = "local-data-nodes";
 rhit.KEY_STORAGE_NAMES = "local-data-names";
 rhit.KEY_STORAGE_CONNECTIONS = "local-data-connections";
 
+rhit.MAX_SAVED_LOCATIONS = 5;
+
 
 // adapted from https://www.w3schools.com/howto/howto_js_autocomplete.asp
-w3schools.autocomplete = function (inp, arr, callOnAcceptAutocompleteItem) {
+w3schools.autocomplete = function (inp, arr, callOnAcceptAutocompleteItem, suggestFavorites) {
 	/* the autocomplete function takes two arguments,
 	the text field element and an array of possible autocompleted values:*/
 	let currentFocus;
 	/* execute a function when someone writes in the text field:*/
+	inp.addEventListener("focus", function(e) {
+		let a = this.value;
+		let b = this.value;
+		const val = this.value;
+		/* close any already open lists of autocompleted values*/
+		closeAllLists();
+		if (!val) {
+			if (rhit.fbAuthManagerSingleton.isSignedIn && suggestFavorites) {
+				/* create a DIV element that will contain the items (values):*/
+				/* create a DIV element that will contain the items (values):*/
+				const savedLocations = rhit.fbAuthManagerSingleton.savedLocations;
+				a = document.createElement("DIV");
+				a.setAttribute("id", `${this.id}autocomplete-list`);
+				a.setAttribute("class", "autocomplete-items");
+				/* append the DIV element as a child of the autocomplete container:*/
+				this.parentNode.appendChild(a);
+				/* for each item in the array...*/
+
+				for (let i = 0; i < rhit.MAX_SAVED_LOCATIONS; i++) {
+					const trueName = savedLocations[i];
+					if (!trueName) {
+						continue;
+					}
+					b = document.createElement("DIV");
+					b.innerHTML += trueName;
+					/* insert a input field that will hold the current array item's value:*/
+					b.innerHTML += `<input type='hidden' value='${trueName}'>`;
+					/* execute a function when someone clicks on the item value (DIV element):*/
+					b.addEventListener("click", function(e) {
+						/* insert the value for the autocomplete text field:*/
+						inp.value = this.getElementsByTagName("input")[0].value;
+						console.log("element", this.getElementsByTagName("input")[0]);
+						/* close the list of autocompleted values,
+							(or any other open lists of autocompleted values:*/
+						closeAllLists();
+						if (callOnAcceptAutocompleteItem) {
+							callOnAcceptAutocompleteItem();
+						}
+					});
+					a.appendChild(b);
+				}
+				return false;
+			}
+		}
+	});
+
+
 	inp.addEventListener("input", function(e) {
 		let a = this.value;
 		let b = this.value;
@@ -59,7 +109,42 @@ w3schools.autocomplete = function (inp, arr, callOnAcceptAutocompleteItem) {
 		/* close any already open lists of autocompleted values*/
 		closeAllLists();
 		if (!val) {
-			return false;
+			if (rhit.fbAuthManagerSingleton.isSignedIn && suggestFavorites) {
+				/* create a DIV element that will contain the items (values):*/
+				/* create a DIV element that will contain the items (values):*/
+				const savedLocations = rhit.fbAuthManagerSingleton.savedLocations;
+				a = document.createElement("DIV");
+				a.setAttribute("id", `${this.id}autocomplete-list`);
+				a.setAttribute("class", "autocomplete-items");
+				/* append the DIV element as a child of the autocomplete container:*/
+				this.parentNode.appendChild(a);
+				/* for each item in the array...*/
+
+				for (let i = 0; i < rhit.MAX_SAVED_LOCATIONS; i++) {
+					const trueName = savedLocations[i];
+					if (!trueName) {
+						continue;
+					}
+					b = document.createElement("DIV");
+					b.innerHTML += trueName;
+					/* insert a input field that will hold the current array item's value:*/
+					b.innerHTML += `<input type='hidden' value='${trueName}'>`;
+					/* execute a function when someone clicks on the item value (DIV element):*/
+					b.addEventListener("click", function(e) {
+						/* insert the value for the autocomplete text field:*/
+						inp.value = this.getElementsByTagName("input")[0].value;
+						console.log("element", this.getElementsByTagName("input")[0]);
+						/* close the list of autocompleted values,
+							(or any other open lists of autocompleted values:*/
+						closeAllLists();
+						if (callOnAcceptAutocompleteItem) {
+							callOnAcceptAutocompleteItem();
+						}
+					});
+					a.appendChild(b);
+				}
+				return false;
+			}
 		}
 		currentFocus = -1;
 		/* create a DIV element that will contain the items (values):*/
@@ -82,7 +167,7 @@ w3schools.autocomplete = function (inp, arr, callOnAcceptAutocompleteItem) {
 
 			if (arr[i].toUpperCase().indexOf(val.toUpperCase()) != -1) {
 			/* create a DIV element for each matching element:*/
-				const fbId = rhit.homeManagerSingleton.getFbIdFromName(arr[i]);
+				const fbId = rhit.mapDataSubsystemSingleton.getLocationFbIdFromNameOrAlias(arr[i]);
 				const trueMapNode = rhit.mapDataSubsystemSingleton.getMapNodeFromFbID(fbId);
 				const trueName = trueMapNode.name;
 				if (searchResults[trueName]) {
@@ -193,6 +278,14 @@ movabletype.haversine = function(lat1, lat2, lon1, lon2) {
 	return R * c; // in metres
 };
 
+// From https://stackoverflow.com/a/35385518/12693560
+rhit.htmlToElement = function (html) {
+	const template = document.createElement('template');
+	html = html.trim(); // Never return a text node of whitespace as the result
+	template.innerHTML = html;
+	return template.content.firstChild;
+};
+
 rhit.makeIcons = function() {
 	const makeIcon = (iconFileName) => {
 		const iconOptions = L.Icon.Default.prototype.options;
@@ -231,13 +324,17 @@ rhit.HomeController = class {
 			window.location.href = "./settings.html";
 		};
 		document.querySelector("#menuSavedLocations").onclick = (event) => {
-			// rhit.fbAuthManagerSingleton.signIn();
+			// window.location.href = "./saved_locations.html";
+			window.location.href = "./settings.html#savedLocationsHeader";
 		};
 		document.querySelector("#menuClearData").onclick = (event) => {
-			// rhit.fbAuthManagerSingleton.signIn();
+			$('#confirmDeleteDataModal').modal('show');
+		};
+		document.querySelector("#confirmDeleteDataButton").onclick = (event) => {
+			rhit.fbAuthManagerSingleton.clearData();
 		};
 		document.querySelector("#menuReportProblem").onclick = (event) => {
-			// rhit.fbAuthManagerSingleton.signIn();
+			$('#contactUsModal').modal('show');
 		};
 		document.querySelector("#menuSignOut").onclick = (event) => {
 			rhit.fbAuthManagerSingleton.signOut();
@@ -316,8 +413,8 @@ rhit.HomeManager = class {
 			$("#submitLocation").click();
 		};
 
-		w3schools.autocomplete(startInput, validLocationsArray, goIfBothFilledOut);
-		w3schools.autocomplete(destInput, validLocationsArray, goIfBothFilledOut);
+		w3schools.autocomplete(startInput, validLocationsArray, goIfBothFilledOut, true);
+		w3schools.autocomplete(destInput, validLocationsArray, goIfBothFilledOut, true);
 
 		document.querySelector("#navigateLoadingBox").style.display = "none";
 		document.querySelector("#navigateSearchBoxes").style.display = "block";
@@ -351,18 +448,6 @@ rhit.HomeManager = class {
 			}
 		}
 		return false;
-	}
-};
-
-// RouteController controls the route page's html
-rhit.RouteController = class {
-	constructor(startPoint, destPoint) {
-		this._startPoint = startPoint;
-		this._destPoint = destPoint;
-	}
-
-	updateView() {
-		console.log("Change listener fired");
 	}
 };
 
@@ -400,15 +485,83 @@ rhit.RouteManager = class {
 
 	navAndDrawPath() {
 		const path = rhit.mapDataSubsystemSingleton._dijkstraBetweenFbKeys(this._startPointFbId, this._destPointFbId);
-		let pathLength = 0;
-		for (let i = 0; i < path.length; ++i) {
-			const e = path[i];
-			console.log(`${e.from()} => ${e.to()}: ${e.weight}`);
-			pathLength += e.weight;
-			this.drawMapLineFromGraphVertices(e.from(), e.to(), this._connectionLayer, "red");
+		if (path) {
+			let pathLength = 0;
+			for (let i = 0; i < path.length; ++i) {
+				const e = path[i];
+				console.log(`${e.from()} => ${e.to()}: ${e.weight}`);
+				pathLength += e.weight;
+				this.drawMapLineFromGraphVertices(e.from(), e.to(), this._connectionLayer, "red");
+			}
+			console.log("Path is total length", pathLength);
+			// TODO: do something with this value
+			this.calculateRouteTimes(pathLength);
+		} else {
+			console.warn("No path between nodes");
+			this.displayNoPath();
 		}
-		console.log("Path is total length", pathLength);
+		
 	}
+
+	calculateRouteTimes(pathLength) {
+		let defaultSpeed = rhit.fbAuthManagerSingleton.defaultSpeed;
+		const moveSpeeds = rhit.fbAuthManagerSingleton.moveSpeeds;
+		let walkSpeed = moveSpeeds.walk;
+		let runSpeed = moveSpeeds.run;
+		let sprintSpeed = moveSpeeds.sprint;
+		if (rhit.fbAuthManagerSingleton.isSignedIn) {
+			// set the things to stuff other than the defaults if we have a logged in user
+			defaultSpeed = rhit.fbAuthManagerSingleton.userDefaultSpeed;
+			walkSpeed = rhit.fbAuthManagerSingleton.walkSpeed;
+			runSpeed = rhit.fbAuthManagerSingleton.runSpeed;
+			sprintSpeed = rhit.fbAuthManagerSingleton.sprintSpeed;
+		}
+		const walkTime = pathLength / walkSpeed;
+		const runTime = pathLength / runSpeed;
+		const sprintTime = pathLength / sprintSpeed;
+		this.updateRouteTimes(defaultSpeed, this.convertToMMSS(walkTime), this.convertToMMSS(runTime), this.convertToMMSS(sprintTime));
+	}
+
+	displayNoPath() {
+		let defaultSpeed = rhit.fbAuthManagerSingleton.defaultSpeed;
+		this.updateRouteTimes(defaultSpeed, "No path!", "No path!", "No path!");
+		window.alert("No path found between the nodes! Consider reporting this issue from the home page.");
+	}
+
+	convertToMMSS(inputSeconds) {
+		let minutes = Math.floor(inputSeconds / 60);
+		let seconds = Math.floor(inputSeconds % 60);
+		if (minutes < 10) {
+			minutes = `0${minutes}`;
+		}
+		if (seconds < 10) {
+			seconds = `0${seconds}`;
+		}
+		return `${minutes}:${seconds}`;
+	}
+
+	updateRouteTimes(defaultSpeed, walkTime, runTime, sprintTime) {
+		const defaultSpeedElement = document.querySelector("#defaultSpeedOutput");
+		switch (defaultSpeed) {
+		case 0:
+			defaultSpeedElement.innerHTML = walkTime;
+			break;
+		case 1:
+			defaultSpeedElement.innerHTML = runTime;
+			break;
+		case 2:
+			defaultSpeedElement.innerHTML = sprintTime;
+			break;
+		default:
+			console.error("Invalid Default Speed was selected");
+			break;
+		}
+		// assign the rest of the speeds
+		document.querySelector("#walkSpeedOutput").innerHTML = walkTime;
+		document.querySelector("#runSpeedOutput").innerHTML = runTime;
+		document.querySelector("#sprintSpeedOutput").innerHTML = sprintTime;
+	}
+
 
 	_createMap() {
 		const startLat = 39.48310247510036;
@@ -750,6 +903,7 @@ rhit.DevMapManager = class {
 		marker.remove();
 		this._deleteLocation(fbKey);
 	}
+
 	_deleteConnectionLine(fbKey, connectionLine) {
 		console.log("Removing Leaflet Polyline", connectionLine);
 		connectionLine.remove(); // removes the line from the map on the client side
@@ -815,6 +969,7 @@ rhit.DevMapManager = class {
 			console.error("Error removing document: ", error);
 		});
 	}
+
 	_deleteConnection(fbKey) {
 		rhit.mapDataSubsystemSingleton._connectionsRef.doc(fbKey).delete().then(() => {
 			console.log("Document successfully deleted!");
@@ -888,6 +1043,7 @@ rhit.DevMapManager = class {
 			break;
 		}
 	}
+
 	createNodeAtPos(lat, long) {
 		const nodeName = document.querySelector("#nodeNameInput").value;
 		const nodeNumber = document.querySelector("#nodeNumber").value;
@@ -939,11 +1095,50 @@ rhit.DevMapManager = class {
 rhit.SettingsController = class {
 	constructor() {
 		console.log("Settings controller created");
+		this._defaultSpeed = rhit.fbAuthManagerSingleton.userDefaultSpeed;
+		const walkToggle = document.querySelector("#speedToggleWalking");
+		const runToggle = document.querySelector("#speedToggleRunning");
+		const sprintToggle = document.querySelector("#speedToggleSprinting");
+
 		document.querySelector("#submitWalkSet").onclick = (event) => {
 			const walkSpeed = document.querySelector("#inputWalk").value;
-			// todo trim walkspeed to be a number (integer?) and not include m/s
-			// rhit.fbAuthManagerSingleton.update(walkSpeed, "walk");
+			if (!(walkSpeed > 0)) {
+				window.alert("Input must be a number greater than 0");
+				return;
+			}
+			if (isNaN(walkSpeed)) {
+				window.alert("Input must be a valid number");
+			}
+			rhit.fbAuthManagerSingleton.setWalkSpeed(walkSpeed);
+			this.updateView();
 		};
+
+		document.querySelector("#submitRunSet").onclick = (event) => {
+			const runSpeed = document.querySelector("#inputRun").value;
+			if (!(runSpeed > 0)) {
+				window.alert("Input must be a number greater than 0");
+				return;
+			}
+			if (isNaN(runSpeed)) {
+				window.alert("Input must be a valid number");
+			}
+			rhit.fbAuthManagerSingleton.setRunSpeed(runSpeed);
+			this.updateView();
+		};
+
+		document.querySelector("#submitSprintSet").onclick = (event) => {
+			const sprintSpeed = document.querySelector("#inputSprint").value;
+			if (!(sprintSpeed > 0)) {
+				window.alert("Input must be a number greater than 0");
+				return;
+			}
+			if (isNaN(sprintSpeed)) {
+				window.alert("Input must be a valid number");
+			}
+			rhit.fbAuthManagerSingleton.setSprintSpeed(sprintSpeed);
+			this.updateView();
+		};
+
 		$('#walkSetModal').on("show.bs.modal", (event) => {
 			document.querySelector("#inputWalk").value = rhit.fbAuthManagerSingleton.walkSpeed;
 			document.querySelector("#inputWalk").focus();
@@ -956,52 +1151,208 @@ rhit.SettingsController = class {
 			document.querySelector("#inputSprint").value = rhit.fbAuthManagerSingleton.sprintSpeed;
 			document.querySelector("#inputSprint").focus();
 		});
-		document.querySelector("#submitDeleteQuote").onclick = (event) => {
-			rhit.fbSingleQuoteManager.delete().then(function () {
-				console.log("Document successfully deleted!");
-				window.location.href = "/list.html";
-			}).catch(function (error) {
-				console.error("Error deleting document: ", error);
-			});
+
+		document.querySelector("#speedToggleWalkingRadio").onclick = (event) => {
+			rhit.fbAuthManagerSingleton.setUserDefaultSpeed(0);
 		};
-		document.querySelector("#speedToggleWalking").onclick = (event) => {
-			// switch user speed to walking
+		document.querySelector("#speedToggleRunningRadio").onclick = (event) => {
+			// switch user speed to running
+			rhit.fbAuthManagerSingleton.setUserDefaultSpeed(1);
 		};
-		document.querySelector("#speedToggleJogging").onclick = (event) => {
-			// switch user speed to jogging
-		};
-		document.querySelector("#speedToggleSprinting").onclick = (event) => {
+		document.querySelector("#speedToggleSprintingRadio").onclick = (event) => {
 			// switch user speed to sprinting
+			rhit.fbAuthManagerSingleton.setUserDefaultSpeed(2);
 		};
+
+		document.querySelector("#submitLocation").addEventListener("click", (event) => {
+			const wasUserClick = event.isTrusted;
+			// Navigates on successful validate
+			// Only brings up popups if it's a user click on the button and not js-caused
+			rhit.settingsManagerSingleton.addFavoritePlace();
+		});
+
+		rhit.settingsManagerSingleton.buildCurrentSavedPlacesList();
+		this.updateView();
+	}
+
+	updateView() {
+		console.log("Update settings view", rhit.fbAuthManagerSingleton.walkSpeed);
+		document.querySelector("#speedSetWalking").innerHTML = `${rhit.fbAuthManagerSingleton.walkSpeed} m/s`;
+		document.querySelector("#speedSetRunning").innerHTML = `${rhit.fbAuthManagerSingleton.runSpeed} m/s`;
+		document.querySelector("#speedSetSprinting").innerHTML = `${rhit.fbAuthManagerSingleton.sprintSpeed} m/s`;
+		this._fillInSpeedFromUserDefault();
+	}
+
+	_fillInSpeedFromUserDefault() {
+		const defaultSpeed = rhit.fbAuthManagerSingleton.userDefaultSpeed;
+		console.log("Default speed is", defaultSpeed);
+
+		const walkToggle = document.querySelector("#speedToggleWalking");
+		const runToggle = document.querySelector("#speedToggleRunning");
+		const sprintToggle = document.querySelector("#speedToggleSprinting");
+
+		let uncheck = (elem) => {
+			elem.setAttribute("checked", ""); // For IE
+			elem.removeAttribute("checked"); // For other browsers
+			elem.checked = false;
+		};
+		let check = (elem) => {
+			console.log("Checking", elem);
+			elem.setAttribute("checked", "checked");
+			elem.checked = true;
+		}
+		uncheck(walkToggle);
+		uncheck(runToggle);
+		uncheck(sprintToggle);
+
+		switch (defaultSpeed) {
+			case 0:
+				check(walkToggle);
+				break;
+			case 1:
+				check(runToggle);
+				break;
+			case 2:
+				check(sprintToggle);
+				break;
+			default:
+				console.error("Unrecognized default speed");
+				break;
+		}
 	}
 };
 
-// SettingsManager
 rhit.SettingsManager = class {
 	constructor() {
-		console.log("Settings manager created");
+		this._validLocationsArray = null;
+		console.log("Constructed SettingsManager");
+	}
+
+	setupSearchBoxes(validLocationsArray) {
+		const placeInput = document.querySelector("#placeInput");
+		this._validLocationsArray = validLocationsArray;
+		// console.log("Valid locations for search:", validLocationsArray);
+
+		w3schools.autocomplete(placeInput, validLocationsArray, false, false);
+
+		document.querySelector("#favoritePlacesLoadingBox").style.display = "none";
+		document.querySelector("#favoritePlacesSearchBox").style.display = "block";
+	}
+	
+	addFavoritePlace() {
+		const inputter = document.querySelector("#placeInput");
+		const placeToAddName = inputter.value;
+		const placeToAddFbID = rhit.mapDataSubsystemSingleton.getLocationFbIdFromNameOrAlias(placeToAddName);
+		console.log("Add favorite place", placeToAddName);
+		console.log("id ", placeToAddFbID);
+		if (placeToAddFbID) {
+			let savedLocations = Object.values(rhit.fbAuthManagerSingleton.savedLocations);
+			console.log("Current favorite places", savedLocations);
+
+			if (savedLocations.length > rhit.MAX_SAVED_LOCATIONS) {
+				window.alert(`Maximum saved locations is ${rhit.MAX_SAVED_LOCATIONS}`);
+				return false;
+			} else if (savedLocations.includes(placeToAddName)) {
+				return false;
+			}
+
+			savedLocations.push(placeToAddName);
+			rhit.fbAuthManagerSingleton.setSavedLocations(Object.assign({}, savedLocations));
+			inputter.value = "";
+			this.buildCurrentSavedPlacesList();
+			return true;
+		} else {
+			window.alert(`Invalid location`);
+		}
+		return false;
+	}
+
+	_createFavoritePlaceElement(locationName, locationFbId) {
+		return rhit.htmlToElement(
+			`<div class="favoritePlaceLising row">
+				<span aria-hidden="true" id="deleteSaved${locationFbId}" onclick="rhit.settingsManagerSingleton.clickedDeletePlace('${locationName}')">&times;</span>
+				<p class="">${locationName}</p>
+			</div>`);
+	}
+
+	clickedDeletePlace(placeName) {
+		console.log(placeName);
+		let savedLocations = Object.values(rhit.fbAuthManagerSingleton.savedLocations);
+		console.log("Current favorite places", savedLocations);
+		let index = savedLocations.indexOf(placeName);
+		console.log(index);
+		if (index >= 0) {
+			savedLocations.splice(index, 1);
+		}
+		console.log(savedLocations);
+		rhit.fbAuthManagerSingleton.setSavedLocations(Object.assign({}, savedLocations));
+		this.buildCurrentSavedPlacesList();
+	}
+	
+	buildCurrentSavedPlacesList() {
+		console.log("Build places list");
+		let savedLocations = Object.values(rhit.fbAuthManagerSingleton.savedLocations);
+		console.log("Current favorite places", savedLocations);
+		const savedListElem = document.querySelector("#savedLocationsList");
+		savedListElem.innerHTML = "";
+		savedLocations.forEach(element => {
+			const newItem = this._createFavoritePlaceElement(element, rhit.mapDataSubsystemSingleton.getLocationFbIdFromNameOrAlias(element) || "ERROR")
+			savedListElem.appendChild(newItem);
+		});
 	}
 };
+
+// // SavedLocationsController
+// rhit.SavedLocationsController = class {
+// 	constructor() {
+// 		console.log("SavedLocations controller created");
+// 	}
+
+// 	updateView() {
+// 		console.log("Update SavedLocations view");
+// 		// document.querySelector("#speedSetWalking").value = rhit.fbAuthManagerSingleton.walkSpeed;
+// 		// document.querySelector("#speedSetRunning").value = rhit.fbAuthManagerSingleton.runSpeed;
+// 		// document.querySelector("#speedSetSprinting").value = rhit.fbAuthManagerSingleton.sprintSpeed;
+// 	}
+// };
+
+// rhit.SavedLocationsManager = class {
+// 	constructor() {
+// 		console.log("SavedLocations manager created");
+// 	}
+// };
+
 
 // FbAuthManager is responsible for managing user logins
 rhit.FbAuthManager = class {
 	constructor() {
 		this._user = null;
+		this._mapUser = null; // this is the class that holds all the actual user data for our use
+		// parallel to the rhit.Connection or rhit.MapNode class
 		this._ref = firebase.firestore();
-		this._speedConstants = this._ref.collection(rhit.FB_COLLECTION_CONSTANTS).doc("DefaultUserSettings");
-		// todo get default speeds from speedConstants somehow
-		this.walkSpeed = 1;
-		this.runSpeed = 4;
-		this.sprintSpeed = 6;
+		this._speedConstantsRef = this._ref.collection(rhit.FB_COLLECTION_CONSTANTS).doc("DefaultUserSettings");
+		this._usersRef = this._ref.collection(rhit.FB_COLLECTION_USERS);
+		this.defaultSpeed = null;
+		this.moveSpeeds = null;
+		this._setDefaultSpeedsFromFb();
 		console.log("Auth manager created");
 	}
+
 	beginListening(changeListener) {
-		firebase.auth().onAuthStateChanged((user) => {
+		firebase.auth().onAuthStateChanged(async (user) => {
 			this._user = user;
-			// todo update speeds based on user preference
-			changeListener();
+			if (this.isSignedIn) {
+				await this._getMapUserDataFromFb(this.uid);
+			} else {
+				this._user = null;
+				this._mapUser = null;
+			}
+			if (changeListener) {
+				changeListener();
+			}
 		});
 	}
+
 	signIn() {
 		// Please note this needs to be the result of a user interaction
 		// (like a button click) otherwise it will get blocked as a popup
@@ -1030,17 +1381,144 @@ rhit.FbAuthManager = class {
 				});
 		});
 	}
+
+	clearData() {
+		if (this.isSignedIn) {
+			this._usersRef.doc(this.uid).delete().then(() => {
+				console.log(`User data successfully deleted for user ${this.uid}`);
+			}).catch((error) => {
+				console.error("Error removing user data: ", error);
+			});
+		}
+	}
+
 	signOut() {
 		firebase.auth().signOut().catch((error) => {
 			// An error happened.
 			console.error("Sign out failed!");
 		});
 	}
+
+	async _setDefaultSpeedsFromFb() {
+		return await this._speedConstantsRef.get().then((doc) => {
+			if (doc.exists) {
+				console.log("Assigning default speed:", doc.data().defaultSpeed);
+				this.defaultSpeed = doc.data().defaultSpeed;
+				console.log("Assigning move speeds:", doc.data().moveSpeeds);
+				this.moveSpeeds = doc.data().moveSpeeds;
+			} else {
+				// doc.data() will be undefined in this case
+				console.log("No such document!");
+			}
+		}).catch((error) => {
+			console.log("Error getting document:", error);
+		});
+	}
+
+	async _getMapUserDataFromFb(uid) {
+		return await this._usersRef.doc(uid).get().then((doc) => {
+			if (doc.exists) {
+				const defaultSpeed = doc.data().defaultSpeed;
+				const moveSpeeds = doc.data().moveSpeeds;
+				const savedLocations = doc.data().savedLocations;
+				console.log(`Grabbing user ${uid} from firebase with defaultSpeed = ${defaultSpeed}, 
+				moveSpeeds = ${moveSpeeds}, savedLocations = ${savedLocations}`);
+				this._mapUser = new rhit.MapUser(uid, defaultSpeed, moveSpeeds, savedLocations);
+			} else {
+				// doc.data() will be undefined in this case
+				console.log("No such document!");
+				// create a new user instead using the defaults
+				this._addNewUserToFb(uid);
+			}
+		}).catch((error) => {
+			console.log("Error getting document:", error);
+		});
+	}
+
+	async _addNewUserToFb(uid) {
+		return await this._usersRef.doc(uid).set({
+			defaultSpeed: this.defaultSpeed,
+			moveSpeeds: this.moveSpeeds,
+			savedLocations: {},
+		});
+	}
+
+	async _saveMapUserDataToFb(uid) {
+		return await this._usersRef.doc(uid).set({
+			defaultSpeed: this._mapUser.defaultSpeed,
+			moveSpeeds: this._mapUser.moveSpeeds,
+			savedLocations: this._mapUser.savedLocations,
+		});
+	}
+
 	get isSignedIn() {
 		return !!this._user;
 	}
+
 	get uid() {
 		return this._user.uid;
+	}
+
+	setUserDefaultSpeed(newSpeed) {
+		console.log("Setting default speed to ", newSpeed);
+		if (!this.isSignedIn) {
+			window.alert("You must be signed in to do that!");
+			return;
+		}
+		if (newSpeed != 0 && newSpeed != 1 && newSpeed !=2) {
+			window.alert(`${newSpeed} is not a valid default speed setting.`);
+		}
+		this._mapUser.defaultSpeed = newSpeed;
+		this._saveMapUserDataToFb(this.uid);
+	}
+
+	setWalkSpeed(newWalkSpeed) {
+		this._mapUser.moveSpeeds.walk = newWalkSpeed;
+		this._saveMapUserDataToFb(this.uid);
+	}
+
+	setRunSpeed(newRunSpeed) {
+		this._mapUser.moveSpeeds.run = newRunSpeed;
+		this._saveMapUserDataToFb(this.uid);
+	}
+
+	setSprintSpeed(newSprintSpeed) {
+		this._mapUser.moveSpeeds.sprint = newSprintSpeed;
+		this._saveMapUserDataToFb(this.uid);
+	}
+
+	setSavedLocations(newLocationsArray) {
+		this._mapUser.savedLocations = newLocationsArray;
+		this._saveMapUserDataToFb(this.uid);
+	}
+
+	get userDefaultSpeed() {
+		return this._mapUser ? this._mapUser.defaultSpeed : this.defaultSpeed;
+	}
+
+	get walkSpeed() {
+		return this._mapUser ? this._mapUser.moveSpeeds.walk : this.moveSpeeds.walk;
+	}
+
+	get runSpeed() {
+		return this._mapUser ? this._mapUser.moveSpeeds.run : this.moveSpeeds.run;
+	}
+
+	get sprintSpeed() {
+		return this._mapUser ? this._mapUser.moveSpeeds.sprint : this.moveSpeeds.sprint;
+	}
+
+	get savedLocations() {
+		return this._mapUser ? this._mapUser.savedLocations : {};
+	}
+};
+
+rhit.MapUser = class {
+	constructor (uid, defaultSpeed, moveSpeeds, savedLocations) {
+		this.uid = uid;
+		this.defaultSpeed = defaultSpeed;
+		this.moveSpeeds = moveSpeeds;
+		this.savedLocations = savedLocations;
 	}
 };
 
@@ -1258,11 +1736,7 @@ rhit.MapDataSubsystem = class {
 		// console.log("Nav graph vertexes", this.navGraph.V);
 		// console.log(this.navGraph);
 		// console.log(dijkstra);
-		if (dijkstra.hasPathTo(vertexIndexEnd)) {
-			return dijkstra.pathTo(vertexIndexEnd);
-		} else {
-			console.error("No path between nodes");
-		}
+		return dijkstra.hasPathTo(vertexIndexEnd) ? dijkstra.pathTo(vertexIndexEnd) : false;
 	}
 
 	_writeCachedMapData(versionEpochTime) {
@@ -1367,7 +1841,6 @@ rhit.initializePage = function () {
 		// new rhit.LoginPageController();
 	} else if (document.querySelector("#mainPage")) {
 		console.log("You are on the Main Home page.");
-
 		// Needs map data for place search
 		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(false, true, () => {
 			console.log("Home page map system callback");
@@ -1394,12 +1867,28 @@ rhit.initializePage = function () {
 			rhit.routeManagerSingleton.navAndDrawPath();
 		});
 		rhit.routeManagerSingleton = new rhit.RouteManager(startPoint, destPoint);
-		new rhit.RouteController(startPoint, destPoint);
 	} else if (document.querySelector("#settingsPage")) {
+		if (!rhit.fbAuthManagerSingleton.isSignedIn) {
+			window.alert("You aren't signed in!");
+			window.location.href = "/";
+		}
 		console.log("You are on the Settings page.");
-
+		// Needs map data for place search for saved places
+		rhit.mapDataSubsystemSingleton = new rhit.MapDataSubsystem(false, true, () => {
+			console.log("Settings page map system callback");
+			const validPlaces = Object.keys(rhit.mapDataSubsystemSingleton.namesToFbId);
+			rhit.settingsManagerSingleton.setupSearchBoxes(validPlaces);
+		});
 		rhit.settingsManagerSingleton = new rhit.SettingsManager();
 		new rhit.SettingsController();
+	// } else if (document.querySelector("#savedLocationsPage")) {
+	// 	if (!rhit.fbAuthManagerSingleton.isSignedIn) {
+	// 		window.alert("You aren't signed in!");
+	// 		window.location.href = "/";
+	// 	}
+	// 	console.log("You are on the savedLocations page.");
+	// 	rhit.savedLocationsManagerSingleton = new rhit.SavedLocationsManager();
+	// 	new rhit.SavedLocationsController();
 	} else if (document.querySelector("#devPage")) {
 		// do dev page stuff
 		const authorizedUsers = {chanb: true, budakrc: true, kleinsv: true};

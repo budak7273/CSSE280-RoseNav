@@ -15,15 +15,16 @@ S<!doctype html>
 <!-- =================================================================================================== -->
 
 <body>
-	<nav class="navbar navbar-dark fixed-top">
-		<div class="nav-item">
-			<a class="navbar-brand" href="./index.html">RoseNav</a>
+	<nav class="navbar navbar-dark fixed-top row">
+		<div class="nav-item col-4">
+			<a class="navbar-brand h4" href="./index.html">RoseNav</a>
 		</div>
-		<div class="nav-item">
+		<div class="speedNavItem col-4 text-center">
+			<h3 id="defaultSpeedOutput">Loading...</h3>
 		</div>
-		<div id="routeNavItem" class="nav-item">
-			<h4 id="directionsTitle">Route:</h4>
-			<h5 id="directionsItem">Loading...</h5>
+		<div id="routeNavItem" class="nav-item col-4 text-right">
+			<h4 id="directionsTitle">Route: <span id="directionsItem" class="h5">Loading...</span></h4>
+			<!-- <h5 id="directionsItem">Loading...</h5> -->
 		</div>
 	</nav>
 
@@ -44,6 +45,11 @@ S<!doctype html>
 			<div id="navigateMap"></div>
 		</div>
 
+		<div id="routeTimesContainer" class="row justify-content-center">
+			<div class="col-4 text-center"><i class="material-icons rose-text">directions_walk</i><div id="walkSpeedOutput">Loading Time for Walking...</div></div>
+			<div class="col-4 text-center"><i class="material-icons rose-text">directions_run</i><div id="runSpeedOutput">Loading Time for Running...</div></div>
+			<div class="col-4 text-center"><i class="material-icons rose-text">run_circle</i><div id="sprintSpeedOutput">Loading Time for Sprinting...</div></div>
+		</div>
 	</div>
 
 <!-- =================================================================================================== -->

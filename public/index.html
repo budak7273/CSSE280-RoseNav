@@ -88,10 +88,54 @@
 						</button>
 					</div>
 				</div>
-			
+
+				
 			</div>
 		</main>
-	  </div>
+	</div>
+
+	<!-- Data Delete Modal -->
+	<div class="modal fade" id="confirmDeleteDataModal" tabindex="-1" role="dialog" aria-labelledby="deleteDataModalLabel" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="deleteDataModalLabel">Delete your data?</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+				<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				Are you sure you would like to clear all of your user data? It will be replaced by the defaults.
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+				<button type="button" id="confirmDeleteDataButton" class="btn btn-primary btn-danger" data-dismiss="modal">DELETE ALL USER DATA</button>
+			</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Contact Us Modal -->
+	<div class="modal fade" id="contactUsModal" tabindex="-1" role="dialog" aria-labelledby="contactUsModalLabel" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="contactUsModalLabel">Contact Us</h5>
+				<button type="button" class="close" data-dismiss="modal" aria-label="Close">
+				<span aria-hidden="true">&times;</span>
+				</button>
+			</div>
+			<div class="modal-body">
+				You can reach us to report an issue or suggestion by sending an email to
+				<a href="mailto:chanb@rose-hulman.edu">chanb@rose-hulman.edu</a>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+				<!-- <button type="button" id="sendEmailButton" class="btn btn-primary " data-dismiss="modal">DELETE ALL USER DATA</button> -->
+			</div>
+			</div>
+		</div>
+	</div>
 
 <!-- =================================================================================================== -->
 
