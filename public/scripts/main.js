@@ -939,17 +939,22 @@ rhit.DevMapManager = class {
 rhit.SettingsController = class {
 	constructor() {
 		console.log("Settings controller created");
-		document.querySelector("#menuSignOut").onclick = (event) => {
-			firebase.auth().signOut();
-		};
 		document.querySelector("#submitWalkSet").onclick = (event) => {
 			const walkSpeed = document.querySelector("#inputWalk").value;
 			// todo trim walkspeed to be a number (integer?) and not include m/s
 			// rhit.fbSingleQuoteManager.update(walkSpeed, "walk");
 		};
 		$('#walkSetModal').on("show.bs.modal", (event) => {
-			document.querySelector("#inputWalk").value = rhit.fbSingleQuoteManager.quote;
+			document.querySelector("#inputWalk").value = rhit.fbSingleQuoteManager.walkSpeed;
 			document.querySelector("#inputWalk").focus();
+		});
+		$('#runSetModal').on("show.bs.modal", (event) => {
+			document.querySelector("#inputRun").value = rhit.fbSingleQuoteManager.runSpeed;
+			document.querySelector("#inputRun").focus();
+		});
+		$('#sprintSetModal').on("show.bs.modal", (event) => {
+			document.querySelector("#inputSprint").value = rhit.fbAuthManagerSingleton.sprintSpeed;
+			document.querySelector("#inputSprint").focus();
 		});
 		document.querySelector("#submitDeleteQuote").onclick = (event) => {
 			rhit.fbSingleQuoteManager.delete().then(function () {
@@ -986,9 +991,9 @@ rhit.FbAuthManager = class {
 		this._ref = firebase.firestore();
 		this._speedConstants = this._ref.collection(rhit.FB_COLLECTION_CONSTANTS).doc("DefaultUserSettings");
 		// todo get default speeds from speedConstants somehow
-		this._walkSpeed = 1;
-		this._runSpeed = 4;
-		this._sprintSpeed = 6;
+		this.walkSpeed = 1;
+		this.runSpeed = 4;
+		this.sprintSpeed = 6;
 		console.log("Auth manager created");
 	}
 	beginListening(changeListener) {
