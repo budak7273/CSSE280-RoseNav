@@ -494,13 +494,11 @@ rhit.RouteManager = class {
 				this.drawMapLineFromGraphVertices(e.from(), e.to(), this._connectionLayer, "red");
 			}
 			console.log("Path is total length", pathLength);
-			// TODO: do something with this value
 			this.calculateRouteTimes(pathLength);
 		} else {
 			console.warn("No path between nodes");
 			this.displayNoPath();
 		}
-		
 	}
 
 	calculateRouteTimes(pathLength) {
@@ -523,7 +521,7 @@ rhit.RouteManager = class {
 	}
 
 	displayNoPath() {
-		let defaultSpeed = rhit.fbAuthManagerSingleton.defaultSpeed;
+		const defaultSpeed = rhit.fbAuthManagerSingleton.defaultSpeed;
 		this.updateRouteTimes(defaultSpeed, "No path!", "No path!", "No path!");
 		window.alert("No path found between the nodes! Consider reporting this issue from the home page.");
 	}
@@ -1096,9 +1094,6 @@ rhit.SettingsController = class {
 	constructor() {
 		console.log("Settings controller created");
 		this._defaultSpeed = rhit.fbAuthManagerSingleton.userDefaultSpeed;
-		const walkToggle = document.querySelector("#speedToggleWalking");
-		const runToggle = document.querySelector("#speedToggleRunning");
-		const sprintToggle = document.querySelector("#speedToggleSprinting");
 
 		document.querySelector("#submitWalkSet").onclick = (event) => {
 			const walkSpeed = document.querySelector("#inputWalk").value;
@@ -1165,9 +1160,6 @@ rhit.SettingsController = class {
 		};
 
 		document.querySelector("#submitLocation").addEventListener("click", (event) => {
-			const wasUserClick = event.isTrusted;
-			// Navigates on successful validate
-			// Only brings up popups if it's a user click on the button and not js-caused
 			rhit.settingsManagerSingleton.addFavoritePlace();
 		});
 
@@ -1191,33 +1183,33 @@ rhit.SettingsController = class {
 		const runToggle = document.querySelector("#speedToggleRunning");
 		const sprintToggle = document.querySelector("#speedToggleSprinting");
 
-		let uncheck = (elem) => {
+		const uncheck = (elem) => {
 			elem.setAttribute("checked", ""); // For IE
 			elem.removeAttribute("checked"); // For other browsers
 			elem.checked = false;
 		};
-		let check = (elem) => {
+		const check = (elem) => {
 			console.log("Checking", elem);
 			elem.setAttribute("checked", "checked");
 			elem.checked = true;
-		}
+		};
 		uncheck(walkToggle);
 		uncheck(runToggle);
 		uncheck(sprintToggle);
 
 		switch (defaultSpeed) {
-			case 0:
-				check(walkToggle);
-				break;
-			case 1:
-				check(runToggle);
-				break;
-			case 2:
-				check(sprintToggle);
-				break;
-			default:
-				console.error("Unrecognized default speed");
-				break;
+		case 0:
+			check(walkToggle);
+			break;
+		case 1:
+			check(runToggle);
+			break;
+		case 2:
+			check(sprintToggle);
+			break;
+		default:
+			console.error("Unrecognized default speed");
+			break;
 		}
 	}
 };
@@ -1238,7 +1230,7 @@ rhit.SettingsManager = class {
 		document.querySelector("#favoritePlacesLoadingBox").style.display = "none";
 		document.querySelector("#favoritePlacesSearchBox").style.display = "block";
 	}
-	
+
 	addFavoritePlace() {
 		const inputter = document.querySelector("#placeInput");
 		const placeToAddName = inputter.value;
@@ -1246,7 +1238,7 @@ rhit.SettingsManager = class {
 		console.log("Add favorite place", placeToAddName);
 		console.log("id ", placeToAddFbID);
 		if (placeToAddFbID) {
-			let savedLocations = Object.values(rhit.fbAuthManagerSingleton.savedLocations);
+			const savedLocations = Object.values(rhit.fbAuthManagerSingleton.savedLocations);
 			console.log("Current favorite places", savedLocations);
 
 			if (savedLocations.length > rhit.MAX_SAVED_LOCATIONS) {
@@ -1270,16 +1262,19 @@ rhit.SettingsManager = class {
 	_createFavoritePlaceElement(locationName, locationFbId) {
 		return rhit.htmlToElement(
 			`<div class="favoritePlaceLising row">
-				<span aria-hidden="true" id="deleteSaved${locationFbId}" onclick="rhit.settingsManagerSingleton.clickedDeletePlace('${locationName}')">&times;</span>
+				<span aria-hidden="true"
+					id="deleteSaved${locationFbId}"
+					onclick="rhit.settingsManagerSingleton.clickedDeletePlace('${locationName}')">
+					&times;</span>
 				<p class="">${locationName}</p>
 			</div>`);
 	}
 
 	clickedDeletePlace(placeName) {
 		console.log(placeName);
-		let savedLocations = Object.values(rhit.fbAuthManagerSingleton.savedLocations);
+		const savedLocations = Object.values(rhit.fbAuthManagerSingleton.savedLocations);
 		console.log("Current favorite places", savedLocations);
-		let index = savedLocations.indexOf(placeName);
+		const index = savedLocations.indexOf(placeName);
 		console.log(index);
 		if (index >= 0) {
 			savedLocations.splice(index, 1);
@@ -1288,15 +1283,16 @@ rhit.SettingsManager = class {
 		rhit.fbAuthManagerSingleton.setSavedLocations(Object.assign({}, savedLocations));
 		this.buildCurrentSavedPlacesList();
 	}
-	
+
 	buildCurrentSavedPlacesList() {
 		console.log("Build places list");
-		let savedLocations = Object.values(rhit.fbAuthManagerSingleton.savedLocations);
+		const savedLocations = Object.values(rhit.fbAuthManagerSingleton.savedLocations);
 		console.log("Current favorite places", savedLocations);
 		const savedListElem = document.querySelector("#savedLocationsList");
 		savedListElem.innerHTML = "";
-		savedLocations.forEach(element => {
-			const newItem = this._createFavoritePlaceElement(element, rhit.mapDataSubsystemSingleton.getLocationFbIdFromNameOrAlias(element) || "ERROR")
+		savedLocations.forEach((element) => {
+			const fbid = rhit.mapDataSubsystemSingleton.getLocationFbIdFromNameOrAlias(element) || "ERROR";
+			const newItem = this._createFavoritePlaceElement(element, fbid);
 			savedListElem.appendChild(newItem);
 		});
 	}
@@ -1814,7 +1810,6 @@ rhit.MapNode = class {
 	}
 };
 
-// TODO might want to change this to have things like the distance (have it be made elsewhere)
 rhit.Connection = class {
 	constructor (fbKey, fbConnectionDocumentData) {
 		this.fbKey = fbKey;
@@ -1822,14 +1817,6 @@ rhit.Connection = class {
 		this.place2FbID = fbConnectionDocumentData[rhit.FB_KEY_CON_PLACE2].id;
 		this.staircase = fbConnectionDocumentData[rhit.FB_KEY_CON_STAIRCASE];
 	}
-
-	// get rawDistance() {
-	// 	return 0.0; // TODO
-	// }
-
-	// speedModifiedDistance(speedMult) {
-	// 	return speedMult * this.rawDistance();
-	// }
 };
 
 rhit.initializePage = function () {
