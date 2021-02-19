@@ -14,24 +14,131 @@
 <!-- =================================================================================================== -->
 
 <body>
-	<nav class="navbar navbar-dark fixed-top">
-		<a class="navbar-brand" href="./index.html">RoseNav</a>
-	</nav>
-	
+	<div class="bmd-layout-container bmd-drawer-f-l bmd-drawer-overlay">
+		<header class="bmd-layout-header">
+			<div class="navbar navbar-dark bg-faded justify-content-start">
+				<a class="navbar-brand" href="#">&nbsp;&nbsp;RoseNav</a>
+			</div>
+		</header>
+		<main class="bmd-layout-content">
+			<div id="settingsPage" class="container page-container">
+				<h3><strong>Set Your Saved Speeds</strong></h3>
+				<div class="row justify-content-center">
+					<div class="col col-lg-3 d-flex flex-column justify-content-center">
+						<p class="text-center rose-text"><strong>Walking</strong></p>
+						<button type="button" class="btn bmd-btn-icon mx-auto" data-toggle="modal" data-target="#walkSetModal">
+							<i class="material-icons text-center rose-text">directions_walk</i>
+						</button>
+						<p id="speedSetWalking" class="text-center rose-text">1 m/s</p>
+					</div>
+					<div class="col col-lg-3 d-flex flex-column justify-content-center">
+						<p class="text-center rose-text"><strong>Jogging</strong></p>
+						<button type="button" class="btn bmd-btn-icon mx-auto" data-toggle="modal" data-target="#runSetModal">
+							<i class="material-icons text-center rose-text">directions_run</i>
+						</button>
+						<p id="speedSetJogging" class="text-center rose-text">3 m/s</p>
+					</div>
+					<div class="col col-lg-3 d-flex flex-column justify-content-center">
+						<p class="text-center rose-text"><strong>Sprinting</strong></p>
+						<button type="button" class="btn bmd-btn-icon mx-auto" data-toggle="modal" data-target="#sprintSetModal">
+							<i class="material-icons text-center rose-text">run_circle</i>
+						</button>
+						<p id="speedSetSprinting" class="text-center rose-text">5 m/s</p>
+					</div>
+				</div>
+				<hr>
+				<div id="travelType">
+					<h3><strong>Set Default Speed</strong></h3>
+					<div class="radio">
+						<label>
+							<input type="radio" name="speedToggle" id="speedToggleWalking" value="option1">
+							&nbsp;&nbsp;&nbsp;Walking
+						</label>
+					</div>
+					<div class="radio">
+						<label>
+							<input type="radio" name="speedToggle" id="speedToggleJogging" value="option2"checked>
+							&nbsp;&nbsp;&nbsp;Jogging
+						</label>
+					</div>
+					<div class="radio">
+						<label>
+							<input type="radio" name="speedToggle" id="speedToggleSprinting" value="option3">
+							&nbsp;&nbsp;&nbsp;Sprinting
+						</label>
+					</div>
+				</div>
+			</div>
+		</main>
+	</div>
 
-	<div id="settingsPage" class="container page-container">
-		<div class="row justify-content-center">
-			<div class="col col-lg-3 d-flex flex-column justify-content-center"><p class="text-center">Walking</p></div>
-			<div class="col col-lg-3 d-flex flex-column justify-content-center"><p class="text-center">Jogging</p></div>
-			<div class="col col-lg-3 d-flex flex-column justify-content-center"><p class="text-center">Sprinting</p></div>
+	<!-- Modal -->
+	<div class="modal fade" id="walkSetModal" tabindex="-1" role="dialog">
+		<div class="modal-dialog modal-dialog-centered" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Enter a New Walk Speed</h5>
+				</div>
+				<div class="modal-body">
+					<p>Calculate this by walking a known distance in meters and dividing by the time taken to travel it.</p>
+					<div class="form-group bmd-form-group">
+						<label for="inputWalk">Walk Speed (m/s)</label>
+						<input type="text" class="form-control" id="inputWalk">
+						<span class="bmd-help">How fast do you walk?</span>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">CANCEL</button>
+					<button id="submitWalkSet" type="button" class="btn btn-primary" data-dismiss="modal">UPDATE</button>
+				</div>
+			</div>
 		</div>
+	</div>
 
-		<ul id="travelType" class="list-group">
-			<a id="speedToggleWalking" class="list-group-item"><i class="material-icons">radio_button_unchecked</i>Walking</a>
-			<a id="speedToggleJogging" class="list-group-item"><i class="material-icons">radio_button_unchecked</i>Jogging</a>
-			<a id="speedToggleSprinting" class="list-group-item"><i class="material-icons">radio_button_unchecked</i>Sprinting</a>
-		</ul>
+	<!-- Modal -->
+	<div class="modal fade" id="runSetModal" tabindex="-1" role="dialog">
+		<div class="modal-dialog modal-dialog-centered" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Enter a New Run Speed</h5>
+				</div>
+				<div class="modal-body">
+					<p>Calculate this by running a known distance in meters and dividing by the time taken to travel it.</p>
+					<div class="form-group bmd-form-group">
+						<label for="inputRun">Run Speed (m/s)</label>
+						<input type="text" class="form-control" id="inputRun">
+						<span class="bmd-help">How fast do you run?</span>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">CANCEL</button>
+					<button id="submitRunSet" type="button" class="btn btn-primary" data-dismiss="modal">UPDATE</button>
+				</div>
+			</div>
+		</div>
+	</div>
 
+	<!-- Modal -->
+	<div class="modal fade" id="sprintSetModal" tabindex="-1" role="dialog">
+		<div class="modal-dialog modal-dialog-centered" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title">Enter a New Sprint Speed</h5>
+				</div>
+				<div class="modal-body">
+					<p>Calculate this by sprinting a known distance in meters and dividing by the time taken to travel it.</p>
+					<div class="form-group bmd-form-group">
+						<label for="inputSprint">Sprint Speed (m/s)</label>
+						<input type="text" class="form-control" id="inputSprint">
+						<span class="bmd-help">How fast do you sprint?</span>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-dismiss="modal">CANCEL</button>
+					<button id="submitSprintSet" type="button" class="btn btn-primary" data-dismiss="modal">UPDATE</button>
+				</div>
+			</div>
+		</div>
 	</div>
 
 <!-- =================================================================================================== -->

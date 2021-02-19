@@ -157,6 +157,52 @@ body {
 	filter: hue-rotate(-0.25turn);
 }
 
+/* Rules for sizing the icon. */
+.material-icons.md-18 {
+	font-size: 18px;
+}
+
+.material-icons.md-24 {
+	font-size: 24px;
+}
+
+.material-icons.md-36 {
+	font-size: 36px;
+}
+
+.material-icons.md-48 {
+	font-size: 48px;
+}
+
+/* Rules for using icons as rose red on a light background. */
+.rose-text {
+	color: rgba(128, 0, 0, 1);
+}
+
+/* Rules for using icons as light rose red on a light background. */
+.light-rose-text {
+	color: rgba(164, 0, 0, 1);
+}
+
+/* Rules for using icons as white on a dark background. */
+.light-text {
+	color: rgba(255, 255, 255, 1);
+}
+
+/* Rules for using icons as black on a light background. */
+.dark-text {
+	color: rgba(0, 0, 0, 1);
+}
+
+/* Trying to fight css specificity on radio buttons */
+/* #travelType>label span {
+	color: rgba(0, 0, 0, 1);
+} */
+
+.bmd-btn-icon {
+	margin: auto;
+}
+
  /* Small devices (landscape phones, 576px and up) */
 @media (min-width: 576px) {
 	.page-container {
