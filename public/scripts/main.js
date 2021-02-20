@@ -54,6 +54,11 @@ w3schools.autocomplete = function (inp, arr, callOnAcceptAutocompleteItem, sugge
 	the text field element and an array of possible autocompleted values:*/
 	let currentFocus;
 	/* execute a function when someone writes in the text field:*/
+	// inp.addEventListener("focusout", function(e) {
+	// 	console.log("focus on autocomplete lost");
+	// 	closeAllLists(); // close all autocomplete lists on lost focus
+	// });
+
 	inp.addEventListener("focus", function(e) {
 		let a = this.value;
 		let b = this.value;
@@ -62,7 +67,6 @@ w3schools.autocomplete = function (inp, arr, callOnAcceptAutocompleteItem, sugge
 		closeAllLists();
 		if (!val) {
 			if (rhit.fbAuthManagerSingleton.isSignedIn && suggestFavorites) {
-				/* create a DIV element that will contain the items (values):*/
 				/* create a DIV element that will contain the items (values):*/
 				const savedLocations = rhit.fbAuthManagerSingleton.savedLocations;
 				a = document.createElement("DIV");
@@ -650,7 +654,7 @@ rhit.RouteManager = class {
 				autoPan: true,
 				icon: mapNode.searchable ? rhit.icons.blue : rhit.icons.small,
 			})
-			.bindPopup(`id:<span class="code">${mapNode.fbKey}</span><br/>n:${mapNode.name}<br/>i:${mapNode.vertexIndex}`)
+			.bindPopup(`${mapNode.name}`)
 			.addTo(layer);
 	}
 

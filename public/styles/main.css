@@ -35,6 +35,10 @@ body {
 	max-height: 100px;
 }
 
+#routeTimesContainer {
+	padding-top: 1rem;
+}
+
 /*
 #speedNavItem {
 	display: flex;
@@ -78,7 +82,7 @@ body {
 	/* https://stackoverflow.com/a/2006008 */
 	left: 0;
 	right: 0;
-	top: 85vh;
+	top: 70vh;
 }
 
 .bmd-layout-content {
