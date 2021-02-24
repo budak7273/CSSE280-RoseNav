@@ -1882,7 +1882,7 @@ rhit.initializePage = function () {
 	// 	new rhit.SavedLocationsController();
 	} else if (document.querySelector("#devPage")) {
 		// do dev page stuff
-		const authorizedUsers = {chanb: true, budakrc: true, kleinsv: true};
+		const authorizedUsers = {chanb: true, budakrc: true, kleinsv: true, yoder1: true};
 		rhit.icons = rhit.makeIcons();
 
 		if (!(rhit.fbAuthManagerSingleton.isSignedIn && authorizedUsers[rhit.fbAuthManagerSingleton.uid])) {

@@ -1,8 +1,31 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write;
+  	// limit data changing to us
+    function isSysAdmin() {
+      return request.auth.uid == "kleinsv" || request.auth.uid == "chanb" || request.auth.uid == "budakrc" || request.auth.uid == "yoder1";
     }
+    match /Locations/{location} {
+      allow read;
+      allow write: if isSysAdmin();
+    }
+    match /Connections/{connection} {
+      allow read;
+      allow write: if isSysAdmin();
+    }
+    match /Constants/{document=**} {
+      allow read;
+      allow write: if isSysAdmin();
+    }
+    match /Users/{user} {
+    	// from https://firebase.google.com/docs/firestore/security/rules-conditions?authuser=0
+      allow read, update, delete: if request.auth != null && request.auth.uid == user;
+      allow create: if request.auth != null;
+    }
+    // allow anyone to read anything (fix later)
+    // match /{document=**} {
+    //   allow read;
+    //   // allow write;
+    // }
   }
 }
