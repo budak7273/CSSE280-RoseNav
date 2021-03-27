@@ -38,12 +38,21 @@ rhit.FB_KEY_CON_PLACE1 = "place1";
 rhit.FB_KEY_CON_PLACE2 = "place2";
 rhit.FB_KEY_CON_STAIRCASE = "staircase?";
 
+// Forcibly get new map data regardless of cache.
+// Takes precedence over DEBUG_FORCE_CACHED_MAP
+// Forcibly rewrites the caches, even if they aren't outdated
+rhit.DEBUG_FORCE_LIVE_MAP = false;
+
+// Forcibly use cached map data, unless DEBUG_FORCE_LIVE_MAP is true.
+rhit.DEBUG_FORCE_CACHED_MAP = false;
+
+
 // This might be able to be replaced with Cloud Firestore offline data access
 // https://firebase.google.com/docs/firestore/manage-data/enable-offline
-rhit.KEY_STORAGE_VERSION = "local-data-version";
+// rhit.KEY_STORAGE_VERSION = "local-data-version";
 rhit.KEY_STORAGE_NODES = "local-data-nodes";
-rhit.KEY_STORAGE_NAMES = "local-data-names";
 rhit.KEY_STORAGE_CONNECTIONS = "local-data-connections";
+rhit.KEY_STORAGE_NAMES = "local-data-names";
 
 rhit.MAX_SAVED_LOCATIONS = 5;
 
@@ -489,11 +498,13 @@ rhit.RouteManager = class {
 
 	navAndDrawPath() {
 		const path = rhit.mapDataSubsystemSingleton._dijkstraBetweenFbKeys(this._startPointFbId, this._destPointFbId);
+		const pathDebug = [];
 		if (path) {
 			let pathLength = 0;
 			for (let i = 0; i < path.length; ++i) {
 				const e = path[i];
-				console.log(`${e.from()} => ${e.to()}: ${e.weight}`);
+				// console.log(`${e.from()} => ${e.to()}: ${e.weight}`);
+				pathDebug.push(`${e.from()} => ${e.to()}: ${e.weight}`);
 				pathLength += e.weight;
 				this.drawMapLineFromGraphVertices(e.from(), e.to(), this._connectionLayer, "red");
 			}
@@ -503,6 +514,7 @@ rhit.RouteManager = class {
 			console.warn("No path between nodes");
 			this.displayNoPath();
 		}
+		console.log("Path step tracing: ", pathDebug);
 	}
 
 	calculateRouteTimes(pathLength) {
@@ -712,9 +724,18 @@ rhit.DevMapManager = class {
 		this._connectionLayer = L.layerGroup([]);
 		this._createDevMap();
 
+		const descriptions = {
+			default: "Double click to create new nodes. Uses the settings below.",
+			connector: "Double click nodes to connect them with the pink 'selected' node (last double clicked OR last selected via tooltip)",
+			disconnector: "Double click connection lines to delete them",
+			deleter: "Double click nodes to delete them WARNING: Does NOT clean up connections, do that first, or at least before refreshing",
+		};
+		const updateHelp = () =>{
+			this.modeIndicator.innerHTML = `Editing Mode: ${this.state} (Press CTRL to change modes)\n${descriptions[this.state]}`;
+		};
 		this.state = "default";
 		this.modeIndicator = document.querySelector("#modeIndicator");
-		this.modeIndicator.innerHTML = `Editing Mode: ${this.state}`;
+		updateHelp();
 		this.selectedNodeAFbId = null;
 		this.selectedNodeBFbId = null;
 		document.addEventListener('keydown', (event) =>{
@@ -739,7 +760,7 @@ rhit.DevMapManager = class {
 			default:
 				break;
 			}
-			this.modeIndicator.innerHTML = `Editing Mode: ${this.state}`;
+			updateHelp();
 		});
 	}
 
@@ -954,6 +975,9 @@ rhit.DevMapManager = class {
 						const newConnection = new rhit.Connection(docRef.id, data);
 						rhit.mapDataSubsystemSingleton._connections[docRef.id] = newConnection;
 						this.drawMapLineFromConnection(newConnection, this._connectionLayer, "red");
+
+						// Update map version on the server since we changed stuff
+						rhit.mapDataSubsystemSingleton.bumpVersionNumber();
 					});
 				})
 				.catch(function (error) {
@@ -967,6 +991,9 @@ rhit.DevMapManager = class {
 	_deleteLocation(fbKey) {
 		rhit.mapDataSubsystemSingleton._locationsRef.doc(fbKey).delete().then(() => {
 			console.log("Document successfully deleted! WARNING - connections unaffected!");
+
+			// Update map version on the server since we changed stuff
+			rhit.mapDataSubsystemSingleton.bumpVersionNumber();
 		}).catch((error) => {
 			console.error("Error removing document: ", error);
 		});
@@ -975,6 +1002,9 @@ rhit.DevMapManager = class {
 	_deleteConnection(fbKey) {
 		rhit.mapDataSubsystemSingleton._connectionsRef.doc(fbKey).delete().then(() => {
 			console.log("Document successfully deleted!");
+
+			// Update map version on the server since we changed stuff
+			rhit.mapDataSubsystemSingleton.bumpVersionNumber();
 		}).catch((error) => {
 			console.error("Error removing document: ", error);
 		});
@@ -1077,14 +1107,19 @@ rhit.DevMapManager = class {
 			[rhit.FB_KEY_LOC_SEARCHABLE]: nodeSearchable,
 		})
 			.then( (docRef) => {
+				// After it's confirmed that the node was created, build local stuff for it
 				console.log("Got doc ref", docRef);
 				docRef.get().then((snapshot) => {
 					console.log("Got snapshot", snapshot);
 					const data = snapshot.data();
 
+					// Must refresh page to rebuild graph, so index -1
 					const newMapNode = new rhit.MapNode(docRef.id, data, -1);
 					rhit.mapDataSubsystemSingleton._fbIDToMapNode[docRef.id] = newMapNode;
 					this.spawnDevMarkerFromMapNode(newMapNode, this._routeMap);
+
+					// Update map version on the server since we changed stuff
+					rhit.mapDataSubsystemSingleton.bumpVersionNumber();
 				});
 			})
 			.catch(function (error) {
@@ -1390,6 +1425,7 @@ rhit.FbAuthManager = class {
 				console.error("Error removing user data: ", error);
 			});
 		}
+		localStorage.clear(); // Also wipe cached map data
 	}
 
 	signOut() {
@@ -1525,7 +1561,7 @@ rhit.MapUser = class {
 // MapDataSubsystem stores the nodes and connections for the map
 rhit.MapDataSubsystem = class {
 	constructor(shouldBuildGraph, shouldBuildNames, callbackWhenDone) {
-		this._cachedDataVersion = parseInt(localStorage.getItem(rhit.KEY_STORAGE_VERSION)) || -1; // Version is stored or blank
+		// this._cachedDataVersion = parseInt(localStorage.getItem(rhit.KEY_STORAGE_VERSION)) || -1; // Version is stored or blank
 
 		// An object used as a map. The keys are firebase ID strings, the values are the MapNodes they correspond to.
 		this._fbIDToMapNode = {};
@@ -1543,6 +1579,8 @@ rhit.MapDataSubsystem = class {
 		this._connectionsRef = this._ref.collection(rhit.FB_COLLECTION_CONNECTIONS);
 		this._unsubscribe = null;
 
+		// TODO make use of this later. Some screens don't need to build map (settings?) if names are cached already
+		this._shouldBuildMapNodes = true;
 		this._shouldBuildGraph = shouldBuildGraph;
 		this._shouldBuildNames = shouldBuildNames;
 
@@ -1551,28 +1589,69 @@ rhit.MapDataSubsystem = class {
 
 	async _prepareData(finalCallback) {
 		try {
-			console.log(`Local map data version is ${this._cachedDataVersion}`);
+			// console.log(`LOCAL map data version is ${this._cachedDataVersion}`);
 			const liveDataVersion = await this._getMapLiveVersionNumber();
+			console.log(`🔥 LIVE map data version is ${liveDataVersion} (${new Date(liveDataVersion).toString()})`);
 
-			if (liveDataVersion > this._cachedDataVersion) {
-				console.log("Map data being fetched and rebuilt from Firebase");
-				await this._buildNodeDataFromFb();
-			} else {
-				console.log("Map data being rebuilt from local storage");
-				throw new Error("Unimplemented: map data building from local storage");
-				await this._buildNodeDataFromCache();
+			// Any change to the map increases the liveDataVersion timestamp
+			// Increases in the liveDataVersion mean that ALL caches are invalid,
+			// but each cached item needs to keep track of if it has been updated or not
+			// individually, since different parts of the data load at different times.
+
+			// Decide to load either cached or fresh data
+			// given an item's cached version timestamp
+			const shouldUseLiveFor = (cachedVersion) => {
+				return rhit.DEBUG_FORCE_LIVE_MAP ||
+					rhit.DEBUG_FORCE_REWRITE_CACHE ||
+					(liveDataVersion > cachedVersion &&
+						!rhit.DEBUG_FORCE_CACHED_MAP);
+			};
+
+			const mapNodeCachedVersion = this._getCachedDataItem_Version(rhit.KEY_STORAGE_NODES);
+			const shouldUseLiveForMapNodes = shouldUseLiveFor(mapNodeCachedVersion);
+			if (this._shouldBuildMapNodes) {
+				if (shouldUseLiveForMapNodes) {
+					console.log("🔥 Using *firebase* for MapNodes");
+					await this._buildNodeDataFromFb();
+				} else {
+					console.log("📦 Using *local storage* for MapNodes");
+					await this._buildNodeDataFromCache();
+				}
 			}
 
-			if (this._shouldBuildNames) {
-				// console.warn("Building names TODO");
-				await this._buildNamesFromMapNodes();
-			}
+			const connectionsCachedVersion = this._getCachedDataItem_Version(rhit.KEY_STORAGE_CONNECTIONS);
+			const shouldUseLiveForConnections = shouldUseLiveFor(connectionsCachedVersion);
 			if (this._shouldBuildGraph) {
-				const connectionData = await this._buildConnectionDataFromFb();
-				this._connections = connectionData;
-				await this._constructGraph(connectionData);
+				if (shouldUseLiveForConnections) {
+					console.log("🔥 Using *firebase* for Connections");
+					await this._buildConnectionDataFromFb();
+				} else {
+					console.log("📦 Using *local storage* for Connections");
+					await this._buildConnectionDataFromCache();
+				}
+				await this._constructGraph(this._connections);
 			}
-			await this._writeCachedMapData(liveDataVersion);
+
+			const namesCachedVersion = this._getCachedDataItem_Version(rhit.KEY_STORAGE_NAMES);
+			const shouldUseLiveForNames = shouldUseLiveFor(namesCachedVersion);
+			if (this._shouldBuildNames) {
+				if (shouldUseLiveForNames) {
+					console.log("🔥 Using *MapNodes* for Names");
+					await this._buildNamesFromMapNodes();
+				} else {
+					console.log("📦 Using *local storage* for Names");
+					await this._buildNamesFromCache();
+				}
+			}
+
+			// Update the caches as needed for each item
+			const isUsingLiveMap = {
+				nodes: shouldUseLiveForMapNodes,
+				connections: shouldUseLiveForConnections,
+				names: shouldUseLiveForNames,
+			};
+			await this._writeUpdatedCachedMapData(liveDataVersion, isUsingLiveMap);
+
 			console.log("Calling final MapDataSubsystem callback...");
 			await finalCallback();
 		} catch (error) {
@@ -1648,8 +1727,22 @@ rhit.MapDataSubsystem = class {
 		});
 	}
 
+	bumpVersionNumber() {
+		// https://firebase.google.com/docs/database/web/read-and-write?authuser=0#update_specific_fields
+		const liveMapVersionRef = this._ref.collection("Constants").doc("Versions");
+		const now = new Date();
+		return liveMapVersionRef.update({
+			"map": now,
+		}).then(() => {
+			console.log("🔼 Bumped map version to ", now);
+		}).catch((error) => {
+			console.error("Failed to update version document:", error);
+		});
+	}
+
+	// Builds this._fbIDToMapNode and this._graphIndexToFbID from Firebase-fetched data
 	async _buildNodeDataFromFb() {
-		return await this._locationsRef.get().then((querySnapshot) => {
+		await this._locationsRef.get().then((querySnapshot) => {
 			console.log("Num nodes:", querySnapshot.size);
 			let index = 0;
 			querySnapshot.forEach((doc) => {
@@ -1663,8 +1756,25 @@ rhit.MapDataSubsystem = class {
 		});
 	}
 
+	// Builds this._fbIDToMapNode and this._graphIndexToFbID from cached data
+	async _buildNodeDataFromCache() {
+		const cached_fbIDToMapNode = this._getCachedDataItem_Data(rhit.KEY_STORAGE_NODES);
+		window.cached_fbIDToMapNode = cached_fbIDToMapNode;
+
+		// Setup _fbIDToMapNode from cache
+		this._fbIDToMapNode = cached_fbIDToMapNode;
+
+		// Also set up _graphIndexToFbID
+		for (const key in cached_fbIDToMapNode) {
+			if (Object.hasOwnProperty.call(cached_fbIDToMapNode, key)) {
+				this._graphIndexToFbID.push(key);
+			}
+		}
+	}
+
+	// Builds this._connections from Firebase-fetched data
 	async _buildConnectionDataFromFb() {
-		return await this._connectionsRef.get().then((querySnapshot) => {
+		await this._connectionsRef.get().then((querySnapshot) => {
 			console.log("Num connections:", querySnapshot.size);
 			const connectionData = {};
 			querySnapshot.forEach((doc) => {
@@ -1676,8 +1786,15 @@ rhit.MapDataSubsystem = class {
 				// Debug
 				// window[doc.id] = thisConnection;
 			});
-			return connectionData;
+			this._connections = connectionData;
 		});
+	}
+
+	// Builds this._connections from cached data
+	async _buildConnectionDataFromCache() {
+		const cached_connections = this._getCachedDataItem_Data(rhit.KEY_STORAGE_CONNECTIONS);
+		window.cached_connections = cached_connections;
+		this._connections = cached_connections;
 	}
 
 	_constructGraph(connectionData) {
@@ -1739,12 +1856,32 @@ rhit.MapDataSubsystem = class {
 		return dijkstra.hasPathTo(vertexIndexEnd) ? dijkstra.pathTo(vertexIndexEnd) : false;
 	}
 
-	_writeCachedMapData(versionEpochTime) {
-		// enable when actually storing version is desired
-		// localStorage.setItem(rhit.KEY_STORAGE_VERSION, versionEpochTime);
-		localStorage.setItem(rhit.KEY_STORAGE_NODES, JSON.stringify(this._fbIDToMapNode));
-		localStorage.setItem(rhit.KEY_STORAGE_CONNECTIONS, JSON.stringify(this._connections));
-		localStorage.setItem(rhit.KEY_STORAGE_NAMES, JSON.stringify(this._namesAndAliasToFbId));
+	// Kept as separate objects so you don't have to load the whole thing just to check the version
+	_writeCachedDataItem(keyString, data, versionEpochTime) {
+		localStorage.setItem(`${keyString}_DATA`, data);
+		localStorage.setItem(`${keyString}_VERSION`, versionEpochTime);
+	}
+	_getCachedDataItem_Data(keyString) {
+		return JSON.parse(localStorage.getItem(`${keyString}_DATA`));
+	}
+	_getCachedDataItem_Version(keyString) {
+		return localStorage.getItem(`${keyString}_VERSION`);
+	}
+
+	_writeUpdatedCachedMapData(liveDataVersion, isUsingLiveMap) {
+		// Only (re-)write the data that was loaded to avoid overwriting with bad data
+		if (this._shouldBuildMapNodes && isUsingLiveMap.nodes) {
+			console.info("📝 Updating cached MapNodes");
+			this._writeCachedDataItem(rhit.KEY_STORAGE_NODES, JSON.stringify(this._fbIDToMapNode), liveDataVersion);
+		}
+		if (this._shouldBuildGraph && isUsingLiveMap.connections) {
+			console.info("📝 Updating cached Connections");
+			this._writeCachedDataItem(rhit.KEY_STORAGE_CONNECTIONS, JSON.stringify(this._connections), liveDataVersion);
+		}
+		if (this._shouldBuildNames && isUsingLiveMap.names) {
+			console.info("📝 Updating cached Names");
+			this._writeCachedDataItem(rhit.KEY_STORAGE_NAMES, JSON.stringify(this._namesAndAliasToFbId), liveDataVersion);
+		}
 	}
 
 	_buildNamesFromMapNodes() {
@@ -1775,6 +1912,12 @@ rhit.MapDataSubsystem = class {
 
 		// console.log(mapNodeValidNameToFbId);
 	}
+
+	_buildNamesFromCache() {
+		// throw new Error("Unimplemented: Names data building from local storage");
+		console.warn("Unimplemented: Names data building from local storage. Using from map nodes instead");
+		this._buildNamesFromMapNodes();
+	}
 };
 
 // May need to convert these two classes into plain JS objects instead of classes so they can be serialized
@@ -1786,9 +1929,12 @@ rhit.MapDataSubsystem = class {
 rhit.MapNode = class {
 	constructor (fbKey, fbLocationDocumentData, vertexIndex) {
 		this.fbKey = fbKey;
-		this.geopoint = fbLocationDocumentData[rhit.FB_KEY_LOC_GEO];
 		this.aliasList = fbLocationDocumentData[rhit.FB_KEY_LOC_ALIAS] || [];
 		this.vertexIndex = vertexIndex;
+
+		const geopoint = fbLocationDocumentData[rhit.FB_KEY_LOC_GEO];
+		this.lat = geopoint.df;
+		this.lon = geopoint.wf;
 
 		// if a node has a name, then set its searchability based on the data.
 		// otherwise, give it a placeholder name and never let it be searchable
@@ -1801,17 +1947,10 @@ rhit.MapNode = class {
 		}
 	}
 
-	validAlias(name) {
-		return (name === this.name) || this.aliasList.includes(name);
-	}
-
-	get lat() {
-		return this.geopoint.df;
-	}
-
-	get lon() {
-		return this.geopoint.wf;
-	}
+	// Since we directly stringify these, they can't have methods.
+	// validAlias(name) {
+	// 	return (name === this.name) || this.aliasList.includes(name);
+	// }
 };
 
 rhit.Connection = class {
@@ -1821,6 +1960,8 @@ rhit.Connection = class {
 		this.place2FbID = fbConnectionDocumentData[rhit.FB_KEY_CON_PLACE2].id;
 		this.staircase = fbConnectionDocumentData[rhit.FB_KEY_CON_STAIRCASE];
 	}
+
+	// Since we directly stringify these, they can't have methods.
 };
 
 rhit.initializePage = function () {
@@ -1882,6 +2023,10 @@ rhit.initializePage = function () {
 	// 	new rhit.SavedLocationsController();
 	} else if (document.querySelector("#devPage")) {
 		// do dev page stuff
+
+		// always use the live map instead of cached
+		rhit.DEBUG_FORCE_LIVE_MAP = true;
+
 		const authorizedUsers = {chanb: true, budakrc: true, kleinsv: true, yoder1: true};
 		rhit.icons = rhit.makeIcons();
 
