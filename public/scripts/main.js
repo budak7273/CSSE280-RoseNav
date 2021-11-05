@@ -608,7 +608,6 @@ rhit.RouteManager = class {
 		const baseLayers = {
 			"Map": osmLayer,
 			"Aerial": Esri_WorldImagery,
-			"Vector": L.esri.basemapLayer('Topographic'),
 		};
 		const overlays = {
 			"Markers": this._markerLayer,
