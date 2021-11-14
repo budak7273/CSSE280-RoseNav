@@ -13,9 +13,13 @@ service cloud.firestore {
       allow read;
       allow write: if isSysAdmin();
     }
-    match /Constants/{document=**} {
+    match /Constants/{docItem} {
       allow read;
-      allow write: if isSysAdmin();
+      allow write: if isSysAdmin() || docItem == "CacheVersions"; // TODO only allow writes from the caching server
+    }
+    match /Cached/{document=**} {
+      allow read;
+      allow write; // TODO only allow writes from the caching server
     }
     match /Users/{user} {
     	// from https://firebase.google.com/docs/firestore/security/rules-conditions?authuser=0
