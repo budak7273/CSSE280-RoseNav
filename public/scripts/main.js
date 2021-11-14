@@ -429,12 +429,22 @@ rhit.HomeManager = class {
 		w3schools.autocomplete(startInput, validLocationsArray, goIfBothFilledOut, true);
 		w3schools.autocomplete(destInput, validLocationsArray, goIfBothFilledOut, true);
 
+		this.hideSuggestionOnDataEntry(startInput);
+		this.hideSuggestionOnDataEntry(destInput);
+
 		document.querySelector("#navigateLoadingBox").style.display = "none";
 		document.querySelector("#navigateSearchBoxes").style.display = "block";
 	}
 
 	getFbIdFromName(name) {
 		return rhit.mapDataSubsystemSingleton.getLocationFbIdFromNameOrAlias(name);
+	}
+
+	hideSuggestionOnDataEntry(element) {
+		element.addEventListener("input", () => {
+			console.log("Entry detected in", element);
+			document.querySelector("#navigationSuggestion").style.display = "none";
+		});
 	}
 
 	validateSearchEntries(showTipperOnFail, goOnSuccess) {
