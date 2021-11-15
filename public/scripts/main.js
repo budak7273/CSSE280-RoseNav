@@ -1951,8 +1951,8 @@ rhit.MapNode = class {
 		this.vertexIndex = vertexIndex;
 
 		const geopoint = fbLocationDocumentData[rhit.FB_KEY_LOC_GEO];
-		this.lat = geopoint.df;
-		this.lon = geopoint.wf;
+		this.lat = geopoint.latitude;
+		this.lon = geopoint.longitude;
 
 		// if a node has a name, then set its searchability based on the data.
 		// otherwise, give it a placeholder name and never let it be searchable
